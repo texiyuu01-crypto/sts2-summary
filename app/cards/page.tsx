@@ -86,7 +86,7 @@ const CardFrameStroke = ({ type, color }: { type: string, color: string }) => {
   );
 };
 
-// --- Sortable Component ---
+// --- Components ---
 const SortableCard = ({ card, isOverlay = false, onHover, onMove }: { 
   card: SpireCard, isOverlay?: boolean, onHover?: (card: SpireCard | null, e?: any) => void, onMove?: (e: any) => void 
 }) => {
@@ -105,14 +105,15 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       <div className="relative w-full h-full overflow-hidden pointer-events-none flex flex-col">
         <div className="w-full aspect-square relative z-0 bg-[#1a1a24] shrink-0">
           <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" crossOrigin="anonymous" />
-          <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-3.5 h-3.5 md:w-4 md:h-4 bg-[#000000cc] rounded-full border border-[#ffffff33] flex items-center justify-center overflow-hidden">
-            <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '7.5px', width: '100%', lineHeight: '1' }}>
+          <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-3.5 h-3.5 md:w-4.5 md:h-4.5 bg-[#000000cc] rounded-full border border-[#ffffff4d] flex items-center justify-center overflow-hidden">
+            <span className="cost-text font-black italic block text-center" 
+                  style={{ color, fontSize: '9px', width: '100%', lineHeight: '1', transform: 'translateY(0.5px)' }}>
               {card.cost === -1 ? 'X' : card.cost}
             </span>
           </div>
         </div>
         <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible relative">
-          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1', display: 'block', minHeight: '2.4em' }}>
+          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1', display: 'block', minHeight: '2.4em' }}>
             {card.name}
           </p>
         </div>
@@ -157,36 +158,14 @@ export default function CardsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // --- Share Logic (Serialization) ---
-  const generateShareURL = useCallback(() => {
-    // データ構造を短縮: {tier_id: [card_index, ...]}
-    const compactData: Record<string, string[]> = {};
-    TIER_ROWS.forEach(row => {
-      if (tierData[row.id].length > 0) {
-        compactData[row.id] = tierData[row.id].map(c => c.id);
-      }
-    });
-    
-    const jsonString = JSON.stringify(compactData);
-    // Base64エンコードしてURLセーフに変換（ハッシュ風）
-    const hash = btoa(unescape(encodeURIComponent(jsonString)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    
-    const shareUrl = `${window.location.origin}${window.location.pathname}?t=${hash}`;
-    navigator.clipboard.writeText(shareUrl);
-    alert("Share URL copied to clipboard!");
-  }, [tierData]);
-
   const loadFromHash = useCallback((hash: string, cardsPool: SpireCard[]) => {
     try {
       const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
       const compactData = JSON.parse(decoded);
-      
+      if (compactData.tab) setActiveTab(compactData.tab);
       const newTierData: Record<string, SpireCard[]> = { pool: [...cardsPool], S: [], A: [], B: [], C: [], D: [] };
-      
-      Object.keys(compactData).forEach(tierId => {
-        const ids = compactData[tierId];
-        ids.forEach((id: string) => {
+      Object.keys(compactData.tiers || {}).forEach(tierId => {
+        compactData.tiers[tierId].forEach((id: string) => {
           const card = newTierData.pool.find(c => c.id === id);
           if (card) {
             newTierData[tierId].push(card);
@@ -196,12 +175,26 @@ export default function CardsPage() {
       });
       setTierData(newTierData);
       setIsTierMode(true);
-    } catch (e) {
-      console.error("Failed to parse share URL", e);
-    }
+    } catch (e) { console.error("Hash load error:", e); }
   }, []);
 
-  // --- Initial Fetch ---
+  const generateShareURL = useCallback(() => {
+    const compactData: any = { tab: activeTab, tiers: {} };
+    TIER_ROWS.forEach(row => {
+      if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id);
+    });
+    const jsonString = JSON.stringify(compactData);
+    const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const shareUrl = `${window.location.origin}${window.location.pathname}?t=${hash}`;
+    navigator.clipboard.writeText(shareUrl);
+    return shareUrl;
+  }, [tierData, activeTab]);
+
+  const handleCopyLink = () => {
+    generateShareURL();
+    alert("URL をコピーしました！");
+  };
+
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
       const sorted = (data as any[]).sort((a, b) => {
@@ -218,21 +211,15 @@ export default function CardsPage() {
     const colorQuery = activeTab === 'all' ? '' : `&color=${activeTab}`;
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
       setAllCards(data);
-      setTierData({ pool: data, S: [], A: [], B: [], C: [], D: [] });
-      
-      // URLにハッシュがあれば復元
+      setTierData(prev => ({ ...prev, pool: data }));
       const urlParams = new URLSearchParams(window.location.search);
       const hash = urlParams.get('t');
-      if (hash) {
-        loadFromHash(hash, data);
-      }
+      if (hash && loading) loadFromHash(hash, data);
       setLoading(false);
     });
   }, [activeTab, loadFromHash]);
 
-  // --- DND Handlers ---
   const updatePos = (e: any) => {
-    if (activeId) return;
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
     if (clientX !== undefined && clientY !== undefined) {
@@ -246,10 +233,7 @@ export default function CardsPage() {
     if (e) updatePos(e);
   };
 
-  const findContainer = (id: string) => {
-    if (id in tierData) return id;
-    return Object.keys(tierData).find(key => tierData[key].some(item => item.id === id));
-  };
+  const findContainer = (id: string) => (id in tierData) ? id : Object.keys(tierData).find(key => tierData[key].some(item => item.id === id));
 
   const handleDragStart = (event: any) => { setActiveId(event.active.id); setHoveredCard(null); };
 
@@ -271,12 +255,12 @@ export default function CardsPage() {
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
-    const activeContainer = findContainer(active.id);
-    const overContainer = findContainer(over.id);
-    if (activeContainer && overContainer && activeContainer === overContainer) {
-      const activeIndex = tierData[activeContainer].findIndex(i => i.id === active.id);
-      const overIndex = tierData[overContainer].findIndex(i => i.id === over.id);
-      if (activeIndex !== overIndex) setTierData(prev => ({ ...prev, [overContainer]: arrayMove(prev[overContainer], activeIndex, overIndex) }));
+    const ac = findContainer(active.id);
+    const oc = findContainer(over?.id);
+    if (ac && oc && ac === oc) {
+      const oldIdx = tierData[ac].findIndex(i => i.id === active.id);
+      const newIdx = tierData[oc].findIndex(i => i.id === over.id);
+      if (oldIdx !== newIdx) setTierData(prev => ({ ...prev, [oc]: arrayMove(prev[oc], oldIdx, newIdx) }));
     }
     setActiveId(null);
   };
@@ -286,14 +270,14 @@ export default function CardsPage() {
     setHoveredCard(null);
     const originalWidth = tierRef.current.style.width;
     tierRef.current.style.width = "1024px"; 
-
     setTimeout(async () => {
       const canvas = await html2canvas(tierRef.current!, { 
         backgroundColor: '#0d0d12', useCORS: true, scale: 3, width: 1024,
         onclone: (clonedDoc) => {
           const costTexts = clonedDoc.querySelectorAll('.cost-text');
           costTexts.forEach((el: any) => {
-            el.style.fontSize = '8px'; el.style.lineHeight = '1'; el.style.transform = 'translate(-1.2px, -3.5px)'; 
+            el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.lineHeight = '1';
+            el.style.transform = 'translate(-1.5px, -3.8px)'; 
           });
         }
       });
@@ -304,9 +288,12 @@ export default function CardsPage() {
   };
 
   const shareX = () => {
-    const text = encodeURIComponent("Slay the Spire 2 Tier List を作成しました！\n");
-    const url = encodeURIComponent(window.location.href);
-    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=STS2,SlayTheSpire2`, '_blank');
+    const currentChar = characters.find(c => c.id === activeTab)?.name || "";
+    const charText = currentChar ? `【${currentChar}】` : "";
+    const text = encodeURIComponent(`Slay the Spire 2 ${charText} Tier List を作成しました！\n`);
+    const url = encodeURIComponent(generateShareURL()); 
+    const hashtags = encodeURIComponent("スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2");
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=${hashtags}`, '_blank');
   };
 
   return (
@@ -333,7 +320,7 @@ export default function CardsPage() {
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <div className="flex justify-end gap-2 mb-4">
-              <button onClick={generateShareURL} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+              <button onClick={handleCopyLink} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
               <button onClick={shareX} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#ffffff1a]">Share on X</button>
               <button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
             </div>
@@ -367,8 +354,8 @@ export default function CardsPage() {
                 <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                   <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
                     <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
-                    <div className="cost-badge absolute top-1 left-1 z-30 w-4 h-4 bg-[#000000cc] border border-[#ffffff33] rounded-full flex items-center justify-center">
-                        <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '8px' }}>{card.cost === -1 ? 'X' : card.cost}</span>
+                    <div className="cost-badge absolute top-1 left-1 z-30 w-4.5 h-4.5 bg-[#000000cc] border border-[#ffffff4d] rounded-full flex items-center justify-center">
+                        <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '10px' }}>{card.cost === -1 ? 'X' : card.cost}</span>
                     </div>
                   </div>
                   <div className="flex-1 flex items-start justify-center px-1 pt-1.5"><p className="card-name-text text-[7px] font-black text-white text-center uppercase break-words w-full">{card.name}</p></div>
