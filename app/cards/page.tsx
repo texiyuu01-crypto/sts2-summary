@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 interface SpireCard {
   id: string;
@@ -15,6 +16,7 @@ interface SpireCard {
 export default function CardsPage() {
   const [allCards, setAllCards] = useState<SpireCard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCard, setSelectedCard] = useState<SpireCard | null>(null);
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/cards?color=regent&lang=jpn')
@@ -29,71 +31,78 @@ export default function CardsPage() {
       });
   }, []);
 
-  // 画像URLを確実に Spire Codex のドメインに向ける関数
   const formatImageUrl = (url: string) => {
     if (!url) return "https://spire-codex.com/assets/images/card_back_regent.png";
-    
-    // すでにフルパスの場合はそのまま
     if (url.startsWith('http')) return url;
-
-    // ログにあった "static/images/cards/..." の形式を
-    // "https://spire-codex.com/static/images/cards/..." に変換
     const cleanPath = url.startsWith('/') ? url : `/${url}`;
     return `https://spire-codex.com${cleanPath}`;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center font-bold italic">
-        陛下「王立図書館の回線が細いようだな...」
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">召喚中...</div>;
 
   return (
-    <main className="min-h-screen bg-slate-900 text-slate-200 p-8">
+    <main className="min-h-screen bg-slate-950 text-slate-200 p-4 md:p-8">
+      <nav className="max-w-6xl mx-auto mb-8">
+        <Link href="/" className="text-yellow-500 hover:text-yellow-400 font-bold">← 帰還する</Link>
+      </nav>
+
       <header className="max-w-5xl mx-auto mb-12 text-center">
-        <h1 className="text-4xl font-black text-yellow-500 mb-4 italic">陛下専用カード名鑑</h1>
+        <h1 className="text-3xl font-black text-yellow-500 italic">陛下専用カード名鑑</h1>
       </header>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* グリッド: カードを小さく表示 (grid-cols-3 ～ 6) */}
+      <div className="max-w-7xl mx-auto grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
         {allCards.map((card) => (
-          <div key={card.id} className="bg-slate-800 border-2 border-slate-700 rounded-2xl overflow-hidden flex flex-col shadow-2xl">
-            <div className="relative aspect-[4/3] bg-black border-b border-slate-700 flex items-center justify-center">
+          <div 
+            key={card.id} 
+            onClick={() => setSelectedCard(card)}
+            className="cursor-pointer bg-slate-900 border border-slate-700 rounded-lg overflow-hidden hover:border-yellow-500 hover:scale-105 transition-all group"
+          >
+            <div className="relative aspect-[3/4] bg-black">
               <img 
                 src={formatImageUrl(card.image_url)} 
                 alt={card.name}
                 className="object-contain w-full h-full"
-                onError={(e) => {
-                  // バックアップ：それでも404なら、IDベースの直接リンクを試す
-                  const target = e.target as HTMLImageElement;
-                  const fallbackUrl = `https://spire-codex.com/static/images/cards/${card.id}.webp`;
-                  if (target.src !== fallbackUrl) {
-                    target.src = fallbackUrl;
-                  } else {
-                    target.src = "https://spire-codex.com/assets/images/card_back_regent.png";
-                  }
-                }}
               />
-              <div className="absolute top-2 right-2 bg-slate-900/90 text-yellow-400 text-lg font-black w-10 h-10 flex items-center justify-center rounded-full border-2 border-yellow-500">
+              <div className="absolute top-1 right-1 bg-slate-900/90 text-yellow-400 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border border-yellow-500">
                 {card.cost}
               </div>
             </div>
-
-            <div className="p-5 flex-grow">
-              <h2 className="font-bold text-xl text-white mb-2">[[{card.name}]]</h2>
-              <div className="flex gap-2 mb-4">
-                <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-slate-700 text-slate-300">{card.rarity}</span>
-                <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-slate-700 text-slate-300">{card.type}</span>
-              </div>
-              <div 
-                className="text-sm text-slate-300 leading-relaxed italic border-t border-slate-700 pt-3"
-                dangerouslySetInnerHTML={{ __html: card.description }}
-              />
+            <div className="p-1 text-center bg-slate-800">
+              <p className="text-[10px] truncate font-bold">{card.name}</p>
             </div>
           </div>
         ))}
       </div>
+
+      {/* 拡大モーダル */}
+      {selectedCard && (
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedCard(null)}
+        >
+          <div 
+            className="bg-slate-900 border-2 border-yellow-500 rounded-2xl overflow-hidden max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative aspect-[4/3] bg-black">
+              <img src={formatImageUrl(selectedCard.image_url)} alt={selectedCard.name} className="object-contain w-full h-full" />
+              <button 
+                onClick={() => setSelectedCard(null)}
+                className="absolute top-2 right-2 text-white bg-black/50 w-8 h-8 rounded-full"
+              >✕</button>
+            </div>
+            <div className="p-6">
+              <h2 className="text-2xl font-bold text-yellow-500 mb-2">[[{selectedCard.name}]]</h2>
+              <div className="flex gap-2 mb-4">
+                <span className="text-xs px-2 py-1 rounded bg-slate-700">{selectedCard.rarity}</span>
+                <span className="text-xs px-2 py-1 rounded bg-slate-700">{selectedCard.type}</span>
+              </div>
+              <p className="text-slate-300 italic border-t border-slate-700 pt-4" dangerouslySetInnerHTML={{ __html: selectedCard.description }} />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
