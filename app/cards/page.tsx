@@ -165,14 +165,26 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
   );
 };
 
-const TierRow = ({ tier, cards, onHover, onMove }: { tier: any, cards: SpireCard[], onHover: any, onMove: any }) => {
-  const { setNodeRef } = useSortable({ id: tier.id });
+const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards: SpireCard[], onHover: any, onMove: any, isCompact: boolean }) => {
+  const { setNodeRef, isOver } = useSortable({ id: tier.id });
+
+  if (isCompact) {
+    return (
+      <div ref={setNodeRef} 
+        className={`flex-1 flex flex-col items-center justify-center h-14 border-r border-[#000] transition-colors ${isOver ? 'brightness-125' : ''}`}
+        style={{ backgroundColor: tier.color }}>
+        <span className="text-lg font-black text-black leading-none">{tier.label}</span>
+        <span className="text-[9px] font-bold text-black opacity-50">({cards.length})</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex border-b border-[#1e293b] min-h-[105px] bg-[#0d0d12]">
       <div style={{ backgroundColor: tier.color }} className="w-12 md:w-20 flex items-center justify-center shrink-0 border-r border-[#000000] z-20">
         <span className="text-xl font-black text-[#000000]">{tier.label}</span>
       </div>
-      <div ref={setNodeRef} className="flex-1 p-3 flex flex-wrap gap-x-2 gap-y-6 content-start min-w-[300px]">
+      <div ref={setNodeRef} className={`flex-1 p-3 flex flex-wrap gap-x-2 gap-y-6 content-start min-w-[300px] ${isOver ? 'bg-white/5' : ''}`}>
         <SortableContext items={cards.map(c => c.id)} strategy={horizontalListSortingStrategy}>
           {cards.map(card => <SortableCard key={card.id} card={card} onHover={onHover} onMove={onMove} />)}
         </SortableContext>
@@ -184,6 +196,7 @@ const TierRow = ({ tier, cards, onHover, onMove }: { tier: any, cards: SpireCard
 // --- Main Page ---
 export default function CardsPage() {
   const [isTierMode, setIsTierMode] = useState(false);
+  const [isCompact, setIsCompact] = useState(false);
   const [characters, setCharacters] = useState<{id: string, name: string}[]>([]);
   const [allCards, setAllCards] = useState<SpireCard[]>([]);
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
@@ -204,13 +217,16 @@ export default function CardsPage() {
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 10 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  // モバイル判定の監視
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setIsCompact(true);
+    };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -350,26 +366,17 @@ export default function CardsPage() {
   );
 
   const updatePos = (e: any) => {
-    if (isMobile) return; // モバイル時は座標更新不要
-
+    if (isMobile) return; 
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
-    
     if (clientX !== undefined && clientY !== undefined) {
       const tooltipWidth = 288;
       const tooltipHeight = tooltipRef.current?.offsetHeight || 300;
-      
       let x = clientX + 15;
-      if (x + tooltipWidth > window.innerWidth) {
-        x = clientX - tooltipWidth - 15;
-      }
-      
+      if (x + tooltipWidth > window.innerWidth) x = clientX - tooltipWidth - 15;
       let y = clientY - (tooltipHeight / 2);
-      if (y + tooltipHeight > window.innerHeight) {
-        y = window.innerHeight - tooltipHeight - 10;
-      }
+      if (y + tooltipHeight > window.innerHeight) y = window.innerHeight - tooltipHeight - 10;
       if (y < 10) y = 10;
-
       setMousePos({ x, y });
     }
   };
@@ -413,9 +420,11 @@ export default function CardsPage() {
   const exportPNG = async () => {
     if (!tierRef.current) return;
     setHoveredCard(null);
-    const originalWidth = tierRef.current.style.width;
-    tierRef.current.style.width = "1024px"; 
+    const wasCompact = isCompact;
+    setIsCompact(false);
     setTimeout(async () => {
+      const originalWidth = tierRef.current!.style.width;
+      tierRef.current!.style.width = "1024px"; 
       const canvas = await html2canvas(tierRef.current!, { 
         backgroundColor: '#0d0d12', useCORS: true, scale: 3, width: 1024,
         onclone: (clonedDoc) => {
@@ -425,17 +434,40 @@ export default function CardsPage() {
         }
       });
       tierRef.current!.style.width = originalWidth;
+      setIsCompact(wasCompact);
       const link = document.createElement('a');
       link.download = `STS-Tier.png`; link.href = canvas.toDataURL('image/png'); link.click();
-    }, 500);
+    }, 150);
   };
 
   return (
     <main className="min-h-screen bg-[#0d0d12] text-[#e2e8f0] p-4 md:p-8 font-sans" onClick={() => setHoveredCard(null)}>
       <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
-        <button onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} className={`px-4 py-1.5 text-[9px] font-black rounded-sm border transition-all ${isTierMode ? 'bg-white text-black' : 'text-[#60a5fa] border-[#3b82f6] hover:bg-[#3b82f61a]'}`}>
-          {isTierMode ? 'EXIT EDITOR' : 'TIER MAKER'}
+        
+        {/* 強調された TIER MAKER ボタン */}
+        <button 
+          onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} 
+          className={`
+            group relative flex items-center gap-2 px-5 py-2.5 text-[11px] font-black rounded-sm border transition-all duration-300
+            ${isTierMode 
+              ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' 
+              : 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white border-[#60a5fa] hover:brightness-110 shadow-[0_0_15px_rgba(59,130,246,0.5)] active:scale-95'
+            }
+          `}
+        >
+          {isTierMode ? (
+            <><span>CLOSE EDITOR</span></>
+          ) : (
+            <>
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" />
+              </svg>
+              <span className="tracking-wider">TIER MAKER</span>
+              {/* 装飾用のアニメーションボーダー */}
+              <div className="absolute -inset-[2px] rounded-sm border border-[#3b82f6] animate-ping opacity-20 pointer-events-none group-hover:opacity-40"></div>
+            </>
+          )}
         </button>
       </nav>
 
@@ -459,14 +491,23 @@ export default function CardsPage() {
       ) : isTierMode ? (
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-            <div className="flex justify-end gap-2 mb-4">
-              <button onClick={(e) => { e.stopPropagation(); generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
-              <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
-              <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
+            
+            <div className="flex justify-between items-center mb-4 px-1">
+              <button onClick={() => setIsCompact(!isCompact)} className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black rounded-sm border border-[#ffffff33] text-white hover:bg-white/10 uppercase transition-colors">
+                <span className="opacity-60">{isCompact ? '展開' : '格納'}</span>
+                {isCompact ? 'EXPAND' : 'COLLAPSE'}
+              </button>
+              <div className="flex gap-2">
+                <button onClick={(e) => { e.stopPropagation(); generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+                <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
+                <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
+              </div>
             </div>
             
-            <div ref={tierRef} className="export-target border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617] shadow-2xl w-full">
-              {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} />)}
+            <div ref={tierRef} className={`export-target border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617] shadow-2xl w-full ${isCompact ? 'sticky top-2 z-[100]' : ''}`}>
+              <div className={isCompact ? 'flex' : 'flex flex-col'}>
+                {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} isCompact={isCompact} />)}
+              </div>
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-1">
@@ -513,7 +554,6 @@ export default function CardsPage() {
         </div>
       )}
 
-      {/* ツールチップ: スマホ中央固定・PC追従のハイブリッド */}
       {hoveredCard && !activeId && (
         <div 
           ref={tooltipRef} 
@@ -556,6 +596,15 @@ export default function CardsPage() {
         .spire-desc b, .spire-desc strong { color: #fde047; font-weight: 800; }
         .touch-none { touch-action: none; }
         select option { background: #0f172a; color: #fff; }
+        @keyframes ping {
+          75%, 100% {
+            transform: scale(1.1);
+            opacity: 0;
+          }
+        }
+        .animate-ping {
+          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
       `}</style>
     </main>
   );
