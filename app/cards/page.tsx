@@ -13,7 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import html2canvas from 'html2canvas';
 
-// --- Types ---
+// --- Types & Constants ---
 interface SpireCard {
   id: string;
   name: string;
@@ -46,7 +46,6 @@ const CHARACTER_ORDER = ["ironclad", "silent", "regent", "necrobinder", "defect"
 const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
   if (!card) return "";
   let text = (isUpgraded ? card.upgrade_description : card.description) || card.description || "";
-
   text = text.replace(/\{(\w+):.*?\}/g, (match, key) => {
     const normalValue = card[key] ?? card.vars?.[key];
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
@@ -56,7 +55,6 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     }
     return displayValue !== undefined ? displayValue.toString() : match;
   });
-
   text = text.replace(/\[!(.*?)!\]/g, (match, key) => {
     const normalValue = card.vars?.[key] ?? card[key];
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
@@ -66,7 +64,6 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     }
     return displayValue !== undefined ? displayValue.toString() : match;
   });
-
   text = text.replace(/\[energy:(\w+)\]/gi, (match, key) => {
     const normalValue = card.vars?.[key] ?? card[key] ?? key;
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
@@ -77,14 +74,12 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     }
     return `${displayValue}${energyIcon}`;
   });
-
   let parsed = text
     .replace(/\n/g, '<br/>')
     .replace(/\[gold\](.*?)\[\/gold\]/gi, '<span style="color: #fde047; font-weight: bold;">$1</span>')
     .replace(/\[relic\](.*?)\[\/relic\]/gi, '<span style="color: #fb7185; font-weight: bold;">$1</span>')
     .replace(/\[kw\](.*?)\[\/kw\]/gi, '<span style="color: #ffffff; font-weight: 800; border-bottom: 1px dashed #666;">$1</span>')
     .replace(/\[energy\]/gi, '⚡️');
-
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter(kw => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter(kw => kw !== "廃棄" && kw !== "Exhaust");
@@ -138,10 +133,7 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       onMouseEnter={(e) => onHover?.(card, e)}
       onMouseLeave={() => onHover?.(null)}
       onMouseMove={(e) => onMove?.(e)}
-      onClick={(e) => { 
-        e.stopPropagation(); 
-        onHover?.(card, e); 
-      }}
+      onClick={(e) => { e.stopPropagation(); onHover?.(card, e); }}
       className={`relative w-14 h-[85px] md:w-16 md:h-[95px] flex flex-col group cursor-grab active:cursor-grabbing touch-none ${isOverlay ? 'scale-110 z-[300]' : ''}`}
     >
       <div className="relative w-full h-full overflow-hidden pointer-events-none flex flex-col">
@@ -167,7 +159,6 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
 
 const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards: SpireCard[], onHover: any, onMove: any, isCompact: boolean }) => {
   const { setNodeRef, isOver } = useSortable({ id: tier.id });
-
   if (isCompact) {
     return (
       <div ref={setNodeRef} 
@@ -178,7 +169,6 @@ const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards
       </div>
     );
   }
-
   return (
     <div className="flex border-b border-[#1e293b] min-h-[105px] bg-[#0d0d12]">
       <div style={{ backgroundColor: tier.color }} className="w-12 md:w-20 flex items-center justify-center shrink-0 border-r border-[#000000] z-20">
@@ -202,11 +192,9 @@ export default function CardsPage() {
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
-  
   const [filterType, setFilterType] = useState('all');
   const [filterRarity, setFilterRarity] = useState('all');
   const [filterKeyword, setFilterKeyword] = useState('all');
-
   const [hoveredCard, setHoveredCard] = useState<SpireCard | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -221,15 +209,22 @@ export default function CardsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  // 【修正ポイント】初回マウント時のみモバイル判定を行う
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setIsCompact(true);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const mobile = window.innerWidth < 768;
+    setIsMobile(mobile);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const hash = urlParams.get('t');
+    
+    // 共有リンクがない場合かつスマホの場合のみ、初期状態をコンパクトにする
+    if (mobile && !hash) {
+      setIsCompact(true);
+    }
+    // リサイズ監視は isMobile の更新のみに留め、 isCompact は上書きしない
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const dynamicTypes = useMemo(() => {
@@ -249,9 +244,7 @@ export default function CardsPage() {
     allCards.forEach(c => {
       c.keywords?.forEach(k => kws.add(k));
       const matches = c.description?.matchAll(/\[kw\](.*?)\[\/kw\]/gi);
-      if (matches) {
-        for (const match of matches) kws.add(match[1]);
-      }
+      if (matches) for (const match of matches) kws.add(match[1]);
     });
     return Array.from(kws).sort();
   }, [allCards]);
@@ -278,27 +271,21 @@ export default function CardsPage() {
       const compactData = JSON.parse(decoded);
       const newTierData: Record<string, SpireCard[]> = { pool: [], S: [], A: [], B: [], C: [], D: [] };
       const assignedIds = new Set<string>();
-
       Object.keys(compactData.tiers || {}).forEach(tierId => {
         if (!newTierData[tierId]) newTierData[tierId] = [];
         compactData.tiers[tierId].forEach((id: string) => {
           const card = cardsPool.find(c => c.id === id);
-          if (card) {
-            newTierData[tierId].push(card);
-            assignedIds.add(id);
-          }
+          if (card) { newTierData[tierId].push(card); assignedIds.add(id); }
         });
       });
       newTierData.pool = cardsPool.filter(c => !assignedIds.has(c.id));
       setTierData(newTierData);
-    } catch (e) { console.error("Hash apply error:", e); }
+    } catch (e) { console.error("Hash error:", e); }
   }, []);
 
   const generateShareURL = useCallback(() => {
     const compactData: any = { tab: activeTab, tiers: {} };
-    TIER_ROWS.forEach(row => {
-      if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id);
-    });
+    TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
     const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const shareUrl = `${window.location.origin}${window.location.pathname}?t=${hash}`;
@@ -330,6 +317,8 @@ export default function CardsPage() {
           const compactData = JSON.parse(decoded);
           if (compactData.tab) setActiveTab(compactData.tab);
           setIsTierMode(true);
+          // 共有リンク優先: URLパラメータがある場合は展開(false)にする
+          setIsCompact(false);
         } catch(e) {}
       }
     });
@@ -426,7 +415,7 @@ export default function CardsPage() {
       const originalWidth = tierRef.current!.style.width;
       tierRef.current!.style.width = "1024px"; 
       const canvas = await html2canvas(tierRef.current!, { 
-        backgroundColor: '#0d0d12', useCORS: true, scale: 3, width: 1024,
+        backgroundColor: '#020617', useCORS: true, scale: 3, width: 1024,
         onclone: (clonedDoc) => {
           clonedDoc.querySelectorAll('.cost-text').forEach((el: any) => {
             el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.transform = 'translate(-1.5px, -3.8px)'; 
@@ -437,34 +426,32 @@ export default function CardsPage() {
       setIsCompact(wasCompact);
       const link = document.createElement('a');
       link.download = `STS-Tier.png`; link.href = canvas.toDataURL('image/png'); link.click();
-    }, 150);
+    }, 200);
+  };
+
+  const toggleTierMode = () => {
+    const nextMode = !isTierMode;
+    setIsTierMode(nextMode);
+    setHoveredCard(null);
+    // 【修正ポイント】手動でのモード切替時はその時の画面幅でコンパクト化を判断
+    if (nextMode) setIsCompact(window.innerWidth < 768);
   };
 
   return (
     <main className="min-h-screen bg-[#0d0d12] text-[#e2e8f0] p-4 md:p-8 font-sans" onClick={() => setHoveredCard(null)}>
       <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
-        
-        {/* 強調された TIER MAKER ボタン */}
         <button 
-          onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} 
-          className={`
-            group relative flex items-center gap-2 px-5 py-2.5 text-[11px] font-black rounded-sm border transition-all duration-300
-            ${isTierMode 
-              ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' 
-              : 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white border-[#60a5fa] hover:brightness-110 shadow-[0_0_15px_rgba(59,130,246,0.5)] active:scale-95'
-            }
-          `}
+          onClick={toggleTierMode} 
+          className={`group relative flex items-center gap-2 px-5 py-2.5 text-[11px] font-black rounded-sm border transition-all duration-300
+            ${isTierMode ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white border-[#60a5fa] hover:brightness-110 shadow-[0_0_15px_rgba(59,130,246,0.5)] active:scale-95'}`}
         >
           {isTierMode ? (
-            <><span>CLOSE EDITOR</span></>
+            <span>CLOSE EDITOR</span>
           ) : (
             <>
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                <path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" />
-              </svg>
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" /></svg>
               <span className="tracking-wider">TIER MAKER</span>
-              {/* 装飾用のアニメーションボーダー */}
               <div className="absolute -inset-[2px] rounded-sm border border-[#3b82f6] animate-ping opacity-20 pointer-events-none group-hover:opacity-40"></div>
             </>
           )}
@@ -491,7 +478,6 @@ export default function CardsPage() {
       ) : isTierMode ? (
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-            
             <div className="flex justify-between items-center mb-4 px-1">
               <button onClick={() => setIsCompact(!isCompact)} className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black rounded-sm border border-[#ffffff33] text-white hover:bg-white/10 uppercase transition-colors">
                 <span className="opacity-60">{isCompact ? '展開' : '格納'}</span>
@@ -555,38 +541,26 @@ export default function CardsPage() {
       )}
 
       {hoveredCard && !activeId && (
-        <div 
-          ref={tooltipRef} 
-          className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
-          style={{ 
-            left: isMobile ? '50%' : mousePos.x, 
-            top: isMobile ? '10%' : mousePos.y, 
-            transform: isMobile ? 'translateX(-50%)' : 'none',
-            borderColor: getRarityColor(hoveredCard.rarity)
-          }}
-        >
+        <div ref={tooltipRef} className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
+          style={{ left: isMobile ? '50%' : mousePos.x, top: isMobile ? '10%' : mousePos.y, transform: isMobile ? 'translateX(-50%)' : 'none', borderColor: getRarityColor(hoveredCard.rarity) }}>
           <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a]">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black text-[#64748b] uppercase tracking-tighter">NORMAL</span>
               <span className="text-sm font-black italic text-white">{hoveredCard.cost === -1 ? 'X' : hoveredCard.cost}</span>
             </div>
             <h3 className="text-xs font-black text-white mb-2">{hoveredCard.name}</h3>
-            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" 
-                  dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, false) }} />
+            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, false) }} />
           </div>
-
           <div className="p-3 bg-[#020617] relative">
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#7cfc004d] to-transparent"></div>
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black text-[#7cfc00] uppercase tracking-tighter">UPGRADED +</span>
-              <span className="text-sm font-black italic" 
-                    style={{ color: (hoveredCard.upgrade?.cost !== undefined && hoveredCard.upgrade.cost < hoveredCard.cost) ? '#7cfc00' : 'white' }}>
+              <span className="text-sm font-black italic" style={{ color: (hoveredCard.upgrade?.cost !== undefined && hoveredCard.upgrade.cost < hoveredCard.cost) ? '#7cfc00' : 'white' }}>
                 {hoveredCard.upgrade?.cost !== undefined ? (hoveredCard.upgrade.cost === -1 ? 'X' : hoveredCard.upgrade.cost) : (hoveredCard.cost === -1 ? 'X' : hoveredCard.cost)}
               </span>
             </div>
             <h3 className="text-xs font-black text-[#7cfc00] mb-2">{hoveredCard.name}+</h3>
-            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" 
-                  dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, true) }} />
+            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, true) }} />
           </div>
         </div>
       )}
@@ -596,15 +570,8 @@ export default function CardsPage() {
         .spire-desc b, .spire-desc strong { color: #fde047; font-weight: 800; }
         .touch-none { touch-action: none; }
         select option { background: #0f172a; color: #fff; }
-        @keyframes ping {
-          75%, 100% {
-            transform: scale(1.1);
-            opacity: 0;
-          }
-        }
-        .animate-ping {
-          animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
+        @keyframes ping { 75%, 100% { transform: scale(1.1); opacity: 0; } }
+        .animate-ping { animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
       `}</style>
     </main>
   );
