@@ -45,40 +45,32 @@ const CHARACTER_ORDER = ["ironclad", "silent", "regent", "necrobinder", "defect"
 // --- Helpers ---
 const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
   if (!card) return "";
-  
-  // APIから取得した説明文
   let text = (isUpgraded ? card.upgrade_description : card.description) || card.description || "";
 
-  // 1. 新形式 {Key:Type} (例: {Damage:diff()}) の置換
   text = text.replace(/\{(\w+):.*?\}/g, (match, key) => {
     const normalValue = card[key] ?? card.vars?.[key];
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
     const displayValue = isUpgraded ? upgradedValue : normalValue;
-
     if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
       return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}</span>`;
     }
     return displayValue !== undefined ? displayValue.toString() : match;
   });
 
-  // 2. 旧形式 [!key!] の置換
   text = text.replace(/\[!(.*?)!\]/g, (match, key) => {
     const normalValue = card.vars?.[key] ?? card[key];
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
     const displayValue = isUpgraded ? upgradedValue : normalValue;
-
     if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
       return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}</span>`;
     }
     return displayValue !== undefined ? displayValue.toString() : match;
   });
 
-  // 3. energy タグの修正（[energy:1] 形式に対応し、アップグレードで色変え）
   text = text.replace(/\[energy:(\w+)\]/gi, (match, key) => {
     const normalValue = card.vars?.[key] ?? card[key] ?? key;
     const upgradedValue = card.upgrade?.[key] ?? normalValue;
     const displayValue = isUpgraded ? upgradedValue : normalValue;
-    
     const energyIcon = '⚡️';
     if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
       return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}${energyIcon}</span>`;
@@ -86,7 +78,6 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     return `${displayValue}${energyIcon}`;
   });
 
-  // 共通の装飾
   let parsed = text
     .replace(/\n/g, '<br/>')
     .replace(/\[gold\](.*?)\[\/gold\]/gi, '<span style="color: #fde047; font-weight: bold;">$1</span>')
@@ -94,7 +85,6 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     .replace(/\[kw\](.*?)\[\/kw\]/gi, '<span style="color: #ffffff; font-weight: 800; border-bottom: 1px dashed #666;">$1</span>')
     .replace(/\[energy\]/gi, '⚡️');
 
-  // キーワード付与
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter(kw => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter(kw => kw !== "廃棄" && kw !== "Exhaust");
@@ -148,7 +138,10 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       onMouseEnter={(e) => onHover?.(card, e)}
       onMouseLeave={() => onHover?.(null)}
       onMouseMove={(e) => onMove?.(e)}
-      onClick={(e) => { e.stopPropagation(); onHover?.(card, e); }}
+      onClick={(e) => { 
+        e.stopPropagation(); 
+        onHover?.(card, e); // スマホでのタップ対応
+      }}
       className={`relative w-14 h-[85px] md:w-16 md:h-[95px] flex flex-col group cursor-grab active:cursor-grabbing touch-none ${isOverlay ? 'scale-110 z-[300]' : ''}`}
     >
       <div className="relative w-full h-full overflow-hidden pointer-events-none flex flex-col">
@@ -204,11 +197,14 @@ export default function CardsPage() {
   const [hoveredCard, setHoveredCard] = useState<SpireCard | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<string | null>(null);
+  
   const tierRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    // タッチ時の遅延を少し増やし、スクロールとドラッグを分離
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -345,11 +341,29 @@ export default function CardsPage() {
     </div>
   );
 
+  // ツールチップ位置計算ロジック（突き抜け防止）
   const updatePos = (e: any) => {
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
+    
     if (clientX !== undefined && clientY !== undefined) {
-      setMousePos({ x: Math.min(window.innerWidth - 270, clientX + 15), y: Math.max(10, clientY - 180) });
+      const tooltipWidth = 288; // w-72 = 18rem = 288px
+      const tooltipHeight = tooltipRef.current?.offsetHeight || 300;
+      
+      // X座標の調整
+      let x = clientX + 15;
+      if (x + tooltipWidth > window.innerWidth) {
+        x = clientX - tooltipWidth - 15; // 左側に表示
+      }
+      
+      // Y座標の調整
+      let y = clientY - (tooltipHeight / 2);
+      if (y + tooltipHeight > window.innerHeight) {
+        y = window.innerHeight - tooltipHeight - 10;
+      }
+      if (y < 10) y = 10;
+
+      setMousePos({ x, y });
     }
   };
 
@@ -439,9 +453,9 @@ export default function CardsPage() {
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <div className="flex justify-end gap-2 mb-4">
-              <button onClick={() => { generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
-              <button onClick={shareX} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
-              <button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
+              <button onClick={(e) => { e.stopPropagation(); generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+              <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
+              <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
             </div>
             
             <div ref={tierRef} className="export-target border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617] shadow-2xl w-full">
@@ -472,7 +486,10 @@ export default function CardsPage() {
             const color = getRarityColor(card.rarity);
             return (
               <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50" 
-                   onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}>
+                   onMouseEnter={(e) => handleHover(card, e)} 
+                   onMouseMove={updatePos} 
+                   onMouseLeave={() => setHoveredCard(null)}
+                   onClick={(e) => { e.stopPropagation(); handleHover(card, e); }}>
                 <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                   <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
                     <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
@@ -489,8 +506,9 @@ export default function CardsPage() {
         </div>
       )}
 
+      {/* ツールチップの実装（refを追加） */}
       {hoveredCard && !activeId && (
-        <div className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
+        <div ref={tooltipRef} className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
              style={{ left: mousePos.x, top: mousePos.y, borderColor: getRarityColor(hoveredCard.rarity) }}>
           
           <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a]">
