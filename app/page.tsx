@@ -1,47 +1,93 @@
+import Link from 'next/link';
+
 export default function Home() {
+  // 記事の一覧データ
+  const posts = [
+    {
+      id: 'block-issue',
+      title: '【悲報】陛下（リージェント）、あまりにも紙耐久すぎて5ch民から心配される',
+      date: '2026.04.16',
+      category: 'キャラ攻略',
+      status: 'published'
+    },
+    {
+      id: 'tier-list',
+      title: '【準備中】Slay the Spire 2 全カード・レリック Tier表 (β版)',
+      date: 'COMING SOON',
+      category: '統計・解析',
+      status: 'draft'
+    },
+    {
+      id: 'post-stats',
+      title: '【準備中】5ch・Reddit 投稿頻度統計レポート - 今、旬のビルドは？',
+      date: 'COMING SOON',
+      category: '統計・解析',
+      status: 'draft'
+    },
+    {
+      id: 'run-analyzer',
+      title: '【準備中】Runデータ解析ツール - あなたの敗因を陛下が指摘',
+      date: 'COMING SOON',
+      category: 'ツール',
+      status: 'draft'
+    },
+  ];
+
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 bg-slate-900 text-slate-200">
-      <header className="w-full max-w-3xl mb-12 border-b border-slate-700 pb-4 text-center">
-        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-600">
-          スレスパ2攻略：リージェント速報
+    <main className="flex min-h-screen flex-col items-center p-8 bg-slate-900 text-slate-200 font-sans">
+      <header className="w-full max-w-3xl mb-12 border-b border-slate-700 pb-6 text-center">
+        <h1 className="text-4xl font-black italic text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600">
+          スレスパ2攻略：陛下速報
         </h1>
+        <p className="text-slate-400 text-sm mt-2 font-bold tracking-widest">
+          ～ 塔の王立図書館・非公式まとめ支部 ～
+        </p>
       </header>
 
-      <article className="w-full max-w-2xl space-y-8">
-        <section className="bg-slate-800 p-6 rounded-xl shadow-xl border border-slate-700">
-          <h2 className="text-xl font-bold mb-4 text-white border-l-4 border-yellow-500 pl-3">
-            【悲報】陛下、あまりにも紙耐久すぎて5ch民から心配される
-          </h2>
+      <div className="w-full max-w-2xl space-y-6">
+        {posts.map((post) => (
+          <div key={post.id} className="relative group">
+            {/* 準備中の記事はリンクさせない、またはクリックしても反応しないようにする */}
+            <Link 
+              href={post.status === 'published' ? `/posts/${post.id}` : '#'} 
+              className={`block p-5 rounded-lg border transition-all shadow-md ${
+                post.status === 'published' 
+                ? 'bg-slate-800 border-slate-700 group-hover:border-yellow-500 group-hover:shadow-yellow-500/20' 
+                : 'bg-slate-800/50 border-slate-800 cursor-not-allowed opacity-70'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-2">
+                <span className={`text-xs font-bold px-2 py-1 rounded ${
+                  post.category === 'ツール' ? 'bg-blue-900 text-blue-300' : 
+                  post.category === '統計・解析' ? 'bg-purple-900 text-purple-300' : 
+                  'bg-yellow-900 text-yellow-300'
+                }`}>
+                  {post.category}
+                </span>
+                <span className="text-xs text-slate-500 font-mono">{post.date}</span>
+              </div>
+              
+              <h2 className={`text-lg font-bold transition-colors ${
+                post.status === 'published' 
+                ? 'text-slate-200 group-hover:text-yellow-400' 
+                : 'text-slate-500'
+              }`}>
+                {post.title}
+              </h2>
 
-          {/* リージェントのターン */}
-          <div className="flex items-start gap-4 mb-6">
-            <div className="bg-yellow-600 text-white p-2 rounded-lg text-xs font-bold w-16 text-center shrink-0">陛下</div>
-            <div className="bg-slate-700 p-4 rounded-lg relative">
-              「フハハハ！見よこの火力を！ブロックなどという卑小な概念、余の辞書には存在せぬ！全てを消し飛ばせば被ダメージは実質ゼロなのだ！！」
-            </div>
+              {post.status === 'draft' && (
+                <div className="mt-2 text-xs text-orange-500 font-bold italic animate-pulse">
+                  UNDER CONSTRUCTION...
+                </div>
+              )}
+            </Link>
           </div>
+        ))}
+      </div>
 
-          {/* サイレントのターン */}
-          <div className="flex items-start gap-4 flex-row-reverse">
-            <div className="bg-green-700 text-white p-2 rounded-lg text-xs font-bold w-16 text-center shrink-0">沈黙</div>
-            <div className="bg-slate-700 p-4 rounded-lg relative border-r-4 border-green-500">
-              「……さっき第1層のエリート相手に『あばばば』って言いながら、HP1桁で逃げ出してたのは誰？ 私がフットワーク貸してあげようか？」
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-          <h3 className="text-lg font-semibold mb-4 text-yellow-500">5chの反応</h3>
-          <ul className="space-y-3 text-sm italic text-slate-400">
-            <li>1. 「リージェント、攻めてる時は王様だけど守りに入った瞬間ただの不審者だよな」</li>
-            <li>2. 「ブロックカードの数値が1層基準のまま3層まで行くのやめろ」</li>
-            <li>3. 「無形がないリージェントとか、ただのサンドバッグで草」</li>
-          </ul>
-        </section>
-      </article>
-
-      <footer className="mt-20 text-slate-500 text-xs text-center">
-        © 2026 塔の王立図書館 - StS2 Strategy Blog
+      <footer className="mt-auto pt-20 text-slate-600 text-[10px] tracking-widest text-center">
+        陛下「フハハ！余の偉大なる記録が刻まれるのを待つが良い！」<br />
+        © 2026 StS2 Summary Project
       </footer>
     </main>
   );
