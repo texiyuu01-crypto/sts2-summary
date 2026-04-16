@@ -1,4 +1,6 @@
-import React from 'react';
+"use client"; // ← これを追加することで、onError などの関数が動くようになります
+
+import React, { useEffect, useState } from 'react';
 
 interface SpireCard {
   id: string;
@@ -8,16 +10,34 @@ interface SpireCard {
   rarity: string;
   cost: string;
   text: string;
-  image_url?: string; // 画像URL用のフィールドを追加
+  image_url?: string;
 }
 
-export default async function CardsPage() {
-  // 画像を含むデータを取得するために color と lang を指定
-  const res = await fetch('https://spire-codex.com/api/cards?color=regent&lang=jpn', {
-    next: { revalidate: 3600 }
-  });
-  
-  const allCards: SpireCard[] = await res.json();
+export default function CardsPage() {
+  const [allCards, setAllCards] = useState<SpireCard[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // クライアントサイドでデータを取得するように変更
+  useEffect(() => {
+    fetch('https://spire-codex.com/api/cards?color=regent&lang=jpn')
+      .then(res => res.json())
+      .then(data => {
+        setAllCards(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("API Error:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-slate-200 flex items-center justify-center font-bold italic">
+        陛下「待て、今データを整理させているところだ...」
+      </div>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-900 text-slate-200 p-8">
@@ -32,14 +52,13 @@ export default async function CardsPage() {
             key={card.id} 
             className="bg-slate-800 border-2 border-slate-700 rounded-2xl overflow-hidden hover:border-yellow-500 transition-all group shadow-2xl flex flex-col"
           >
-            {/* カード画像エリア：APIから画像URLを取得して表示 */}
+            {/* 画像エリア */}
             <div className="relative aspect-[4/3] bg-slate-900 overflow-hidden border-b border-slate-700">
               <img 
                 src={card.image_url || `https://spire-codex.com/images/cards/${card.id}.webp`} 
                 alt={card.name}
                 className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500 opacity-80 group-hover:opacity-100"
                 onError={(e) => {
-                  // 画像がない場合のフォールバック（代わりの画像）
                   (e.target as HTMLImageElement).src = "https://spire-codex.com/images/cards/placeholder.webp";
                 }}
               />
@@ -48,13 +67,11 @@ export default async function CardsPage() {
               </div>
             </div>
 
-            {/* カード情報エリア */}
+            {/* 情報エリア */}
             <div className="p-5 flex-grow flex flex-col">
-              <div className="flex justify-between items-start mb-3">
-                <h2 className="font-bold text-xl text-white group-hover:text-yellow-400 transition-colors">
-                  [[{card.name || "不明なカード"}]]
-                </h2>
-              </div>
+              <h2 className="font-bold text-xl text-white group-hover:text-yellow-400 transition-colors mb-3">
+                [[{card.name || "不明なカード"}]]
+              </h2>
 
               <div className="flex gap-2 mb-4">
                 <span className={`text-[10px] uppercase font-black px-2 py-1 rounded shadow-sm ${
