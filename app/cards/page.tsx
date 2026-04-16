@@ -140,7 +140,7 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       onMouseMove={(e) => onMove?.(e)}
       onClick={(e) => { 
         e.stopPropagation(); 
-        onHover?.(card, e); // スマホでのタップ対応
+        onHover?.(card, e); 
       }}
       className={`relative w-14 h-[85px] md:w-16 md:h-[95px] flex flex-col group cursor-grab active:cursor-grabbing touch-none ${isOverlay ? 'scale-110 z-[300]' : ''}`}
     >
@@ -197,16 +197,24 @@ export default function CardsPage() {
   const [hoveredCard, setHoveredCard] = useState<SpireCard | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
   
   const tierRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    // タッチ時の遅延を少し増やし、スクロールとドラッグを分離
     useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+
+  // モバイル判定の監視
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const dynamicTypes = useMemo(() => {
     const types = new Set<string>();
@@ -341,22 +349,21 @@ export default function CardsPage() {
     </div>
   );
 
-  // ツールチップ位置計算ロジック（突き抜け防止）
   const updatePos = (e: any) => {
+    if (isMobile) return; // モバイル時は座標更新不要
+
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
     
     if (clientX !== undefined && clientY !== undefined) {
-      const tooltipWidth = 288; // w-72 = 18rem = 288px
+      const tooltipWidth = 288;
       const tooltipHeight = tooltipRef.current?.offsetHeight || 300;
       
-      // X座標の調整
       let x = clientX + 15;
       if (x + tooltipWidth > window.innerWidth) {
-        x = clientX - tooltipWidth - 15; // 左側に表示
+        x = clientX - tooltipWidth - 15;
       }
       
-      // Y座標の調整
       let y = clientY - (tooltipHeight / 2);
       if (y + tooltipHeight > window.innerHeight) {
         y = window.innerHeight - tooltipHeight - 10;
@@ -370,7 +377,7 @@ export default function CardsPage() {
   const handleHover = (card: SpireCard | null, e?: any) => {
     if (activeId) return;
     setHoveredCard(card);
-    if (e) updatePos(e);
+    if (e && !isMobile) updatePos(e);
   };
 
   const findContainer = (id: string) => (id in tierData) ? id : Object.keys(tierData).find(key => tierData[key].some(item => item.id === id));
@@ -506,11 +513,18 @@ export default function CardsPage() {
         </div>
       )}
 
-      {/* ツールチップの実装（refを追加） */}
+      {/* ツールチップ: スマホ中央固定・PC追従のハイブリッド */}
       {hoveredCard && !activeId && (
-        <div ref={tooltipRef} className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
-             style={{ left: mousePos.x, top: mousePos.y, borderColor: getRarityColor(hoveredCard.rarity) }}>
-          
+        <div 
+          ref={tooltipRef} 
+          className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
+          style={{ 
+            left: isMobile ? '50%' : mousePos.x, 
+            top: isMobile ? '10%' : mousePos.y, 
+            transform: isMobile ? 'translateX(-50%)' : 'none',
+            borderColor: getRarityColor(hoveredCard.rarity)
+          }}
+        >
           <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a]">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black text-[#64748b] uppercase tracking-tighter">NORMAL</span>
