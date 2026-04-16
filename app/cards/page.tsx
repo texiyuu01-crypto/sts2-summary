@@ -86,6 +86,7 @@ const CardFrameStroke = ({ type, color }: { type: string, color: string }) => {
   );
 };
 
+// --- Components ---
 const SortableCard = ({ card, isOverlay = false, onHover, onMove }: { 
   card: SpireCard, isOverlay?: boolean, onHover?: (card: SpireCard | null, e?: any) => void, onMove?: (e: any) => void 
 }) => {
@@ -102,17 +103,25 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       onClick={(e) => { e.stopPropagation(); onHover?.(card, e); }}
       className={`relative w-14 h-[85px] md:w-16 md:h-[95px] flex flex-col group cursor-grab active:cursor-grabbing touch-none ${isOverlay ? 'scale-110 z-[300]' : ''}`}
     >
-      <div className="relative w-full h-full overflow-hidden pointer-events-none">
-        <div className="w-full aspect-square relative z-0 bg-[#1a1a24]">
+      <div className="relative w-full h-full overflow-hidden pointer-events-none flex flex-col">
+        <div className="w-full aspect-square relative z-0 bg-[#1a1a24] shrink-0">
           <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" crossOrigin="anonymous" />
-          <div className="absolute top-0.5 left-0.5 z-30">
-            <span className="text-[7px] md:text-[9px] font-black italic bg-[#000000cc] rounded-full w-3.5 h-3.5 flex items-center justify-center border border-[#ffffff1a]" style={{ color }}>
+          
+          {/* コストバッジ: Flexboxで中央揃えにしつつ、クラス名を付与 */}
+          <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-3.5 h-3.5 md:w-4 md:h-4 bg-[#000000cc] rounded-full border border-[#ffffff33] flex items-center justify-center overflow-hidden">
+            <span className="cost-text font-black italic block text-center" 
+                  style={{ 
+                    color,
+                    fontSize: '7.5px', 
+                    width: '100%',
+                    lineHeight: '1'
+                  }}>
               {card.cost === -1 ? 'X' : card.cost}
             </span>
           </div>
         </div>
-        <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible">
-          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1', display: 'block', minHeight: '2.2em' }}>
+        <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible relative">
+          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1', display: 'block', minHeight: '2.4em' }}>
             {card.name}
           </p>
         </div>
@@ -138,6 +147,7 @@ const TierRow = ({ tier, cards, onHover, onMove }: { tier: any, cards: SpireCard
   );
 };
 
+// --- Main Page ---
 export default function CardsPage() {
   const [isTierMode, setIsTierMode] = useState(false);
   const [characters, setCharacters] = useState<{id: string, name: string}[]>([]);
@@ -158,7 +168,11 @@ export default function CardsPage() {
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
-      const sorted = (data as any[]).sort((a, b) => CHARACTER_ORDER.indexOf(a.id) - CHARACTER_ORDER.indexOf(b.id));
+      const sorted = (data as any[]).sort((a, b) => {
+        const indexA = CHARACTER_ORDER.indexOf(a.id.toLowerCase());
+        const indexB = CHARACTER_ORDER.indexOf(b.id.toLowerCase());
+        return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
+      });
       setCharacters(sorted);
     });
   }, []);
@@ -223,44 +237,86 @@ export default function CardsPage() {
     setActiveId(null);
   };
 
-  const exportPNG = async () => {
-    if (!tierRef.current) return;
-    setHoveredCard(null);
-    if (document.fonts) await document.fonts.ready;
-    setTimeout(async () => {
-      const canvas = await html2canvas(tierRef.current!, { backgroundColor: '#0d0d12', useCORS: true, scale: 3 });
-      const link = document.createElement('a');
-      link.download = `STS-Tier.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }, 300);
-  };
+    const exportPNG = async () => {
+        if (!tierRef.current) return;
+        setHoveredCard(null);
+        if (document.fonts) await document.fonts.ready;
+        
+        setTimeout(async () => {
+        const canvas = await html2canvas(tierRef.current!, { 
+            backgroundColor: '#0d0d12', 
+            useCORS: true, 
+            scale: 3,
+            logging: false,
+            onclone: (clonedDoc) => {
+            const badges = clonedDoc.querySelectorAll('.cost-badge');
+            badges.forEach((bg: any) => {
+                bg.style.display = 'flex';
+                bg.style.alignItems = 'center';
+                bg.style.justifyContent = 'center';
+                bg.style.width = '14px';
+                bg.style.height = '14px';
+            });
+
+            const costTexts = clonedDoc.querySelectorAll('.cost-text');
+            costTexts.forEach((el: any) => {
+                el.style.fontSize = '8px';
+                el.style.fontFamily = 'sans-serif';
+                el.style.fontWeight = '900';
+                el.style.width = '100%';
+                el.style.textAlign = 'center';
+                el.style.lineHeight = '1';
+                el.style.margin = '0';
+                el.style.padding = '0';
+                
+                // 下に寄りすぎているので、マイナスを大きくして上に持ち上げる
+                // X方向も微調整して、中央に見えるようにします
+                el.style.transform = 'translate(-1.2px, -3.5px)'; 
+            });
+
+            const nameTexts = clonedDoc.querySelectorAll('.card-name-text');
+            nameTexts.forEach((el: any) => {
+                el.style.fontSize = '7.5px';
+                el.style.fontFamily = 'sans-serif';
+                el.style.fontWeight = '900';
+                el.style.lineHeight = '1.1';
+            });
+            }
+        });
+        const link = document.createElement('a');
+        link.download = `STS-Tier.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        }, 400);
+    };
 
   return (
     <main className="min-h-screen bg-[#0d0d12] text-[#e2e8f0] p-4 md:p-8 font-sans" onClick={() => setHoveredCard(null)}>
       <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
-        <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
-        <button onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} className={`px-4 py-1.5 text-[9px] font-black rounded-sm border ${isTierMode ? 'bg-white text-black' : 'text-[#60a5fa] border-[#3b82f6]'}`}>
+        <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest transition-colors">← Return</Link>
+        <button onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} className={`px-4 py-1.5 text-[9px] font-black rounded-sm border transition-all ${isTierMode ? 'bg-white text-black' : 'text-[#60a5fa] border-[#3b82f6] hover:bg-[#3b82f61a]'}`}>
           {isTierMode ? 'EXIT EDITOR' : 'TIER MAKER'}
         </button>
       </nav>
 
       <div className="max-w-7xl mx-auto mb-10 overflow-x-auto text-center scrollbar-hide">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
-          <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b]'}`}>ALL</button>
+          <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black transition-all ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>ALL</button>
           {characters.map((char) => (
-            <button key={char.id} onClick={() => setActiveTab(char.id)} className={`px-4 py-1.5 rounded-sm text-[9px] font-black uppercase ${activeTab === char.id ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>{char.name}</button>
+            <button key={char.id} onClick={() => setActiveTab(char.id)} className={`px-4 py-1.5 rounded-sm text-[9px] font-black uppercase transition-all ${activeTab === char.id ? 'bg-[#2563eb] text-white' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>{char.name}</button>
           ))}
         </div>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-40 animate-pulse text-[10px] font-black text-[#3b82f6]">SYNCHRONIZING...</div>
+        <div className="flex justify-center py-40 animate-pulse text-[10px] font-black tracking-widest text-[#3b82f6]">SYNCHRONIZING...</div>
       ) : isTierMode ? (
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-            <div className="flex justify-end mb-4"><button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase">Export PNG</button></div>
-            <div ref={tierRef} className="border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617]">
+            <div className="flex justify-end mb-4">
+              <button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a] transition-colors">Export PNG</button>
+            </div>
+            <div ref={tierRef} className="export-target border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617] shadow-2xl">
               {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} />)}
             </div>
             <div className="bg-[#0f172a80] p-6 border border-[#ffffff0d] rounded-sm">
@@ -277,30 +333,31 @@ export default function CardsPage() {
           </DndContext>
         </div>
       ) : (
-        <div className="max-w-7xl mx-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-2 gap-y-12">
-          {allCards.map((card) => (
-            <div key={card.id} className="group relative flex flex-col" 
-                 onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}
-                 onClick={(e) => { e.stopPropagation(); handleHover(card, e); }}>
-              <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none">
-                <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
-                  <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
-                  <div className="absolute top-1 left-1 z-30">
-                    <span className="text-[8px] font-black italic bg-[#000000cc] rounded-full w-4 h-4 flex items-center justify-center border border-[#ffffff33]" style={{ color: getRarityColor(card.rarity) }}>
-                      {card.cost === -1 ? 'X' : card.cost}
-                    </span>
+        <div className="max-w-7xl mx-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-x-2 gap-y-12">
+          {allCards.map((card) => {
+            const color = getRarityColor(card.rarity);
+            return (
+              <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50" 
+                   onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}
+                   onClick={(e) => { e.stopPropagation(); handleHover(card, e); }}>
+                <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
+                  <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
+                    <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
+                    <div className="cost-badge absolute top-1 left-1 z-30 w-4 h-4 bg-[#000000cc] border border-[#ffffff33] rounded-full flex items-center justify-center">
+                        <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '8px' }}>{card.cost === -1 ? 'X' : card.cost}</span>
+                    </div>
                   </div>
+                  <div className="flex-1 flex items-start justify-center px-1 pt-1.5"><p className="card-name-text text-[7px] font-black text-white text-center uppercase break-words w-full">{card.name}</p></div>
+                  <CardFrameStroke type={card.type} color={color} />
                 </div>
-                <div className="flex-1 flex items-start justify-center px-1 pt-1.5"><p className="text-[7px] font-black text-white text-center uppercase">{card.name}</p></div>
-                <CardFrameStroke type={card.type} color={getRarityColor(card.rarity)} />
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {hoveredCard && !activeId && (
-        <div className="fixed z-[500] pointer-events-none w-64 bg-[#0f172a] border-2 shadow-2xl rounded-sm" 
+        <div className="fixed z-[500] pointer-events-none w-64 bg-[#0f172a] border-2 shadow-2xl rounded-sm transition-opacity duration-200" 
              style={{ left: mousePos.x, top: mousePos.y, borderColor: getRarityColor(hoveredCard.rarity) }}>
           <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a] flex justify-between items-center">
             <h3 className="text-xs font-black text-white">{hoveredCard.name}</h3>
@@ -315,6 +372,7 @@ export default function CardsPage() {
         .spire-desc b, .spire-desc strong { color: #fde047; font-weight: 800; }
         * { -webkit-tap-highlight-color: transparent; }
         .touch-none { touch-action: none; }
+        p { font-variant-ligatures: none; }
       `}</style>
     </main>
   );
