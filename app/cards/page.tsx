@@ -11,6 +11,7 @@ import {
   horizontalListSortingStrategy, useSortable 
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import html2canvas from 'html2canvas';
 
 // --- Types ---
 interface SpireCard {
@@ -48,7 +49,6 @@ const parseDescription = (card: SpireCard) => {
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter(kw => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter(kw => kw !== "廃棄" && kw !== "Exhaust");
-
     if (topKeywords.length > 0) {
       const topHtml = topKeywords.map(kw => `<span style="color: #82eefd; font-weight: 800;">${kw}。</span>`).join(' ');
       parsed = topHtml + '<br/>' + parsed;
@@ -105,9 +105,14 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       <div className="relative w-full h-full overflow-hidden pointer-events-none">
         <div className="w-full aspect-square relative z-0 bg-[#1a1a24]">
           <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" crossOrigin="anonymous" />
+          <div className="absolute top-0.5 left-0.5 z-30">
+            <span className="text-[7px] md:text-[9px] font-black italic bg-[#000000cc] rounded-full w-3.5 h-3.5 flex items-center justify-center border border-[#ffffff1a]" style={{ color }}>
+              {card.cost === -1 ? 'X' : card.cost}
+            </span>
+          </div>
         </div>
-        <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20">
-          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1' }}>
+        <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible">
+          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1', display: 'block', minHeight: '2.2em' }}>
             {card.name}
           </p>
         </div>
@@ -145,7 +150,6 @@ export default function CardsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const tierRef = useRef<HTMLDivElement>(null);
 
-  // マウスとタッチのセンサーを両立させる設定
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
@@ -154,7 +158,8 @@ export default function CardsPage() {
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
-      setCharacters(data);
+      const sorted = (data as any[]).sort((a, b) => CHARACTER_ORDER.indexOf(a.id) - CHARACTER_ORDER.indexOf(b.id));
+      setCharacters(sorted);
     });
   }, []);
 
@@ -168,23 +173,19 @@ export default function CardsPage() {
     });
   }, [activeTab]);
 
-  const updateMousePos = (e: any) => {
+  const updatePos = (e: any) => {
     if (activeId) return;
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
     if (clientX !== undefined && clientY !== undefined) {
-      // 画面右端での見切れ防止
-      const x = Math.min(window.innerWidth - 270, clientX + 15);
-      // スマホ（タッチイベント）の場合は位置を少し上げる
-      const y = e.touches ? clientY - 180 : clientY - 120;
-      setMousePos({ x, y });
+      setMousePos({ x: Math.min(window.innerWidth - 270, clientX + 15), y: e.touches ? clientY - 180 : clientY - 120 });
     }
   };
 
   const handleHover = (card: SpireCard | null, e?: any) => {
     if (activeId) return;
     setHoveredCard(card);
-    if (e) updateMousePos(e);
+    if (e) updatePos(e);
   };
 
   const findContainer = (id: string) => {
@@ -222,16 +223,29 @@ export default function CardsPage() {
     setActiveId(null);
   };
 
+  const exportPNG = async () => {
+    if (!tierRef.current) return;
+    setHoveredCard(null);
+    if (document.fonts) await document.fonts.ready;
+    setTimeout(async () => {
+      const canvas = await html2canvas(tierRef.current!, { backgroundColor: '#0d0d12', useCORS: true, scale: 3 });
+      const link = document.createElement('a');
+      link.download = `STS-Tier.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }, 300);
+  };
+
   return (
     <main className="min-h-screen bg-[#0d0d12] text-[#e2e8f0] p-4 md:p-8 font-sans" onClick={() => setHoveredCard(null)}>
       <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
-        <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase">← Return</Link>
+        <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
         <button onClick={() => { setIsTierMode(!isTierMode); setHoveredCard(null); }} className={`px-4 py-1.5 text-[9px] font-black rounded-sm border ${isTierMode ? 'bg-white text-black' : 'text-[#60a5fa] border-[#3b82f6]'}`}>
           {isTierMode ? 'EXIT EDITOR' : 'TIER MAKER'}
         </button>
       </nav>
 
-      <div className="max-w-7xl mx-auto mb-10 overflow-x-auto text-center">
+      <div className="max-w-7xl mx-auto mb-10 overflow-x-auto text-center scrollbar-hide">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
           <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b]'}`}>ALL</button>
           {characters.map((char) => (
@@ -241,18 +255,19 @@ export default function CardsPage() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-40 animate-pulse text-[10px] font-black tracking-widest text-[#3b82f6]">SYNCHRONIZING...</div>
+        <div className="flex justify-center py-40 animate-pulse text-[10px] font-black text-[#3b82f6]">SYNCHRONIZING...</div>
       ) : isTierMode ? (
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+            <div className="flex justify-end mb-4"><button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase">Export PNG</button></div>
             <div ref={tierRef} className="border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617]">
-              {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updateMousePos} />)}
+              {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} />)}
             </div>
             <div className="bg-[#0f172a80] p-6 border border-[#ffffff0d] rounded-sm">
-              <h3 className="text-[9px] font-black text-[#64748b] mb-6 uppercase tracking-[0.3em]">Card Pool</h3>
+              <h3 className="text-[9px] font-black text-[#64748b] mb-6 uppercase tracking-[0.3em]">Card Pool (Long press to drag)</h3>
               <div className="flex flex-wrap gap-x-2 gap-y-8 min-h-[150px]">
                 <SortableContext items={tierData.pool.map(c => c.id)} strategy={horizontalListSortingStrategy}>
-                  {tierData.pool.map(card => <SortableCard key={card.id} card={card} onHover={handleHover} onMove={updateMousePos} />)}
+                  {tierData.pool.map(card => <SortableCard key={card.id} card={card} onHover={handleHover} onMove={updatePos} />)}
                 </SortableContext>
               </div>
             </div>
@@ -265,17 +280,18 @@ export default function CardsPage() {
         <div className="max-w-7xl mx-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-2 gap-y-12">
           {allCards.map((card) => (
             <div key={card.id} className="group relative flex flex-col" 
-                 onMouseEnter={(e) => handleHover(card, e)} 
-                 onMouseMove={updateMousePos}
-                 onMouseLeave={() => setHoveredCard(null)}
+                 onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}
                  onClick={(e) => { e.stopPropagation(); handleHover(card, e); }}>
               <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none">
                 <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
                   <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
+                  <div className="absolute top-1 left-1 z-30">
+                    <span className="text-[8px] font-black italic bg-[#000000cc] rounded-full w-4 h-4 flex items-center justify-center border border-[#ffffff33]" style={{ color: getRarityColor(card.rarity) }}>
+                      {card.cost === -1 ? 'X' : card.cost}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex-1 flex items-start justify-center px-1 pt-1.5">
-                  <p className="text-[7px] font-black text-white text-center uppercase">{card.name}</p>
-                </div>
+                <div className="flex-1 flex items-start justify-center px-1 pt-1.5"><p className="text-[7px] font-black text-white text-center uppercase">{card.name}</p></div>
                 <CardFrameStroke type={card.type} color={getRarityColor(card.rarity)} />
               </div>
             </div>
@@ -290,8 +306,7 @@ export default function CardsPage() {
             <h3 className="text-xs font-black text-white">{hoveredCard.name}</h3>
             <span className="text-base font-black italic" style={{ color: getRarityColor(hoveredCard.rarity) }}>{hoveredCard.cost === -1 ? 'X' : hoveredCard.cost}</span>
           </div>
-          <div className="p-3 bg-[#020617] text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" 
-               dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard) }} />
+          <div className="p-3 bg-[#020617] text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard) }} />
         </div>
       )}
 
