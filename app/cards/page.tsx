@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { 
   DndContext, rectIntersection, KeyboardSensor, PointerSensor, TouchSensor,
@@ -18,11 +18,18 @@ interface SpireCard {
   id: string;
   name: string;
   description: string;
+  upgrade_description?: string;
   cost: number;
   type: string;
   rarity: string;
   image_url: string;
   keywords?: string[]; 
+  vars?: Record<string, any>; 
+  upgrade?: {
+    cost?: number;
+    [key: string]: any; 
+  };
+  [key: string]: any;
 }
 
 const TIER_ROWS = [
@@ -36,9 +43,50 @@ const TIER_ROWS = [
 const CHARACTER_ORDER = ["ironclad", "silent", "regent", "necrobinder", "defect"];
 
 // --- Helpers ---
-const parseDescription = (card: SpireCard) => {
+const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
   if (!card) return "";
-  let text = card.description || "";
+  
+  // APIから取得した説明文
+  let text = (isUpgraded ? card.upgrade_description : card.description) || card.description || "";
+
+  // 1. 新形式 {Key:Type} (例: {Damage:diff()}) の置換
+  text = text.replace(/\{(\w+):.*?\}/g, (match, key) => {
+    const normalValue = card[key] ?? card.vars?.[key];
+    const upgradedValue = card.upgrade?.[key] ?? normalValue;
+    const displayValue = isUpgraded ? upgradedValue : normalValue;
+
+    if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
+      return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}</span>`;
+    }
+    return displayValue !== undefined ? displayValue.toString() : match;
+  });
+
+  // 2. 旧形式 [!key!] の置換
+  text = text.replace(/\[!(.*?)!\]/g, (match, key) => {
+    const normalValue = card.vars?.[key] ?? card[key];
+    const upgradedValue = card.upgrade?.[key] ?? normalValue;
+    const displayValue = isUpgraded ? upgradedValue : normalValue;
+
+    if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
+      return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}</span>`;
+    }
+    return displayValue !== undefined ? displayValue.toString() : match;
+  });
+
+  // 3. energy タグの修正（[energy:1] 形式に対応し、アップグレードで色変え）
+  text = text.replace(/\[energy:(\w+)\]/gi, (match, key) => {
+    const normalValue = card.vars?.[key] ?? card[key] ?? key;
+    const upgradedValue = card.upgrade?.[key] ?? normalValue;
+    const displayValue = isUpgraded ? upgradedValue : normalValue;
+    
+    const energyIcon = '⚡️';
+    if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
+      return `<span style="color: #7cfc00; font-weight: bold;">${displayValue}${energyIcon}</span>`;
+    }
+    return `${displayValue}${energyIcon}`;
+  });
+
+  // 共通の装飾
   let parsed = text
     .replace(/\n/g, '<br/>')
     .replace(/\[gold\](.*?)\[\/gold\]/gi, '<span style="color: #fde047; font-weight: bold;">$1</span>')
@@ -46,6 +94,7 @@ const parseDescription = (card: SpireCard) => {
     .replace(/\[kw\](.*?)\[\/kw\]/gi, '<span style="color: #ffffff; font-weight: 800; border-bottom: 1px dashed #666;">$1</span>')
     .replace(/\[energy\]/gi, '⚡️');
 
+  // キーワード付与
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter(kw => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter(kw => kw !== "廃棄" && kw !== "Exhaust");
@@ -147,6 +196,11 @@ export default function CardsPage() {
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
+  
+  const [filterType, setFilterType] = useState('all');
+  const [filterRarity, setFilterRarity] = useState('all');
+  const [filterKeyword, setFilterKeyword] = useState('all');
+
   const [hoveredCard, setHoveredCard] = useState<SpireCard | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -158,24 +212,66 @@ export default function CardsPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
-  const loadFromHash = useCallback((hash: string, cardsPool: SpireCard[]) => {
+  const dynamicTypes = useMemo(() => {
+    const types = new Set<string>();
+    allCards.forEach(c => { if(c.type) types.add(c.type) });
+    return Array.from(types).sort();
+  }, [allCards]);
+
+  const dynamicRarities = useMemo(() => {
+    const rarities = new Set<string>();
+    allCards.forEach(c => { if(c.rarity) rarities.add(c.rarity) });
+    return Array.from(rarities).sort();
+  }, [allCards]);
+
+  const availableKeywords = useMemo(() => {
+    const kws = new Set<string>();
+    allCards.forEach(c => {
+      c.keywords?.forEach(k => kws.add(k));
+      const matches = c.description?.matchAll(/\[kw\](.*?)\[\/kw\]/gi);
+      if (matches) {
+        for (const match of matches) kws.add(match[1]);
+      }
+    });
+    return Array.from(kws).sort();
+  }, [allCards]);
+
+  const filteredDisplayCards = useMemo(() => {
+    return allCards.filter(card => {
+      const matchType = filterType === 'all' || card.type === filterType;
+      const matchRarity = filterRarity === 'all' || card.rarity === filterRarity;
+      const matchKeyword = filterKeyword === 'all' || 
+                           card.keywords?.includes(filterKeyword) || 
+                           card.description?.includes(`[kw]${filterKeyword}[/kw]`);
+      return matchType && matchRarity && matchKeyword;
+    });
+  }, [allCards, filterType, filterRarity, filterKeyword]);
+
+  const filteredPoolCards = useMemo(() => {
+    const currentPoolIds = new Set(tierData.pool.map(c => c.id));
+    return filteredDisplayCards.filter(c => currentPoolIds.has(c.id));
+  }, [filteredDisplayCards, tierData.pool]);
+
+  const applyHashToData = useCallback((hash: string, cardsPool: SpireCard[]) => {
     try {
       const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
       const compactData = JSON.parse(decoded);
-      if (compactData.tab) setActiveTab(compactData.tab);
-      const newTierData: Record<string, SpireCard[]> = { pool: [...cardsPool], S: [], A: [], B: [], C: [], D: [] };
+      const newTierData: Record<string, SpireCard[]> = { pool: [], S: [], A: [], B: [], C: [], D: [] };
+      const assignedIds = new Set<string>();
+
       Object.keys(compactData.tiers || {}).forEach(tierId => {
+        if (!newTierData[tierId]) newTierData[tierId] = [];
         compactData.tiers[tierId].forEach((id: string) => {
-          const card = newTierData.pool.find(c => c.id === id);
+          const card = cardsPool.find(c => c.id === id);
           if (card) {
             newTierData[tierId].push(card);
-            newTierData.pool = newTierData.pool.filter(c => c.id !== id);
+            assignedIds.add(id);
           }
         });
       });
+      newTierData.pool = cardsPool.filter(c => !assignedIds.has(c.id));
       setTierData(newTierData);
-      setIsTierMode(true);
-    } catch (e) { console.error("Hash load error:", e); }
+    } catch (e) { console.error("Hash apply error:", e); }
   }, []);
 
   const generateShareURL = useCallback(() => {
@@ -190,9 +286,12 @@ export default function CardsPage() {
     return shareUrl;
   }, [tierData, activeTab]);
 
-  const handleCopyLink = () => {
-    generateShareURL();
-    alert("URL をコピーしました！");
+  const shareX = () => {
+    const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
+    const text = encodeURIComponent(`Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n`);
+    const url = encodeURIComponent(generateShareURL()); 
+    const hashtags = encodeURIComponent("スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2");
+    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=${hashtags}`, '_blank');
   };
 
   useEffect(() => {
@@ -203,6 +302,16 @@ export default function CardsPage() {
         return (indexA === -1 ? 99 : indexA) - (indexB === -1 ? 99 : indexB);
       });
       setCharacters(sorted);
+      const urlParams = new URLSearchParams(window.location.search);
+      const hash = urlParams.get('t');
+      if (hash) {
+        try {
+          const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
+          const compactData = JSON.parse(decoded);
+          if (compactData.tab) setActiveTab(compactData.tab);
+          setIsTierMode(true);
+        } catch(e) {}
+      }
     });
   }, []);
 
@@ -211,19 +320,36 @@ export default function CardsPage() {
     const colorQuery = activeTab === 'all' ? '' : `&color=${activeTab}`;
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
       setAllCards(data);
-      setTierData(prev => ({ ...prev, pool: data }));
       const urlParams = new URLSearchParams(window.location.search);
       const hash = urlParams.get('t');
-      if (hash && loading) loadFromHash(hash, data);
+      if (hash) applyHashToData(hash, data);
+      else setTierData({ pool: data, S: [], A: [], B: [], C: [], D: [] });
       setLoading(false);
     });
-  }, [activeTab, loadFromHash]);
+  }, [activeTab, applyHashToData]);
+
+  const FilterControls = () => (
+    <div className="flex flex-wrap items-center gap-3">
+      <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="bg-[#1e293b] text-[9px] font-black text-white border border-[#ffffff1a] rounded-sm px-3 py-1 outline-none uppercase tracking-wider">
+        <option value="all">種類: 全て</option>
+        {dynamicTypes.map(t => <option key={t} value={t}>{t.toUpperCase()}</option>)}
+      </select>
+      <select value={filterRarity} onChange={(e) => setFilterRarity(e.target.value)} className="bg-[#1e293b] text-[9px] font-black text-white border border-[#ffffff1a] rounded-sm px-3 py-1 outline-none uppercase tracking-wider">
+        <option value="all">レアリティ: 全て</option>
+        {dynamicRarities.map(r => <option key={r} value={r}>{r.toUpperCase()}</option>)}
+      </select>
+      <select value={filterKeyword} onChange={(e) => setFilterKeyword(e.target.value)} className="bg-[#1e293b] text-[9px] font-black text-white border border-[#ffffff1a] rounded-sm px-3 py-1 outline-none uppercase tracking-wider max-w-[150px]">
+        <option value="all">効果: 全て</option>
+        {availableKeywords.map(kw => <option key={kw} value={kw}>{kw.toUpperCase()}</option>)}
+      </select>
+    </div>
+  );
 
   const updatePos = (e: any) => {
     const clientX = e.clientX ?? e.touches?.[0]?.clientX;
     const clientY = e.clientY ?? e.touches?.[0]?.clientY;
     if (clientX !== undefined && clientY !== undefined) {
-      setMousePos({ x: Math.min(window.innerWidth - 270, clientX + 15), y: e.touches ? clientY - 180 : clientY - 120 });
+      setMousePos({ x: Math.min(window.innerWidth - 270, clientX + 15), y: Math.max(10, clientY - 180) });
     }
   };
 
@@ -234,22 +360,20 @@ export default function CardsPage() {
   };
 
   const findContainer = (id: string) => (id in tierData) ? id : Object.keys(tierData).find(key => tierData[key].some(item => item.id === id));
-
   const handleDragStart = (event: any) => { setActiveId(event.active.id); setHoveredCard(null); };
-
   const handleDragOver = (event: any) => {
     const { active, over } = event;
     if (!over) return;
-    const activeContainer = findContainer(active.id);
-    const overContainer = findContainer(over.id);
-    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+    const ac = findContainer(active.id);
+    const oc = findContainer(over.id);
+    if (!ac || !oc || ac === oc) return;
     setTierData(prev => {
-      const activeItems = prev[activeContainer];
+      const activeItems = prev[ac];
       const activeIndex = activeItems.findIndex(i => i.id === active.id);
-      const overItems = prev[overContainer];
+      const overItems = prev[oc];
       const overIndex = overItems.findIndex(i => i.id === over.id);
       let newIndex = over.id in prev ? overItems.length : overIndex;
-      return { ...prev, [activeContainer]: prev[activeContainer].filter(i => i.id !== active.id), [overContainer]: [...prev[overContainer].slice(0, newIndex), prev[activeContainer][activeIndex], ...prev[overContainer].slice(newIndex)] };
+      return { ...prev, [ac]: prev[ac].filter(i => i.id !== active.id), [oc]: [...prev[oc].slice(0, newIndex), prev[ac][activeIndex], ...prev[oc].slice(newIndex)] };
     });
   };
 
@@ -274,10 +398,8 @@ export default function CardsPage() {
       const canvas = await html2canvas(tierRef.current!, { 
         backgroundColor: '#0d0d12', useCORS: true, scale: 3, width: 1024,
         onclone: (clonedDoc) => {
-          const costTexts = clonedDoc.querySelectorAll('.cost-text');
-          costTexts.forEach((el: any) => {
-            el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.lineHeight = '1';
-            el.style.transform = 'translate(-1.5px, -3.8px)'; 
+          clonedDoc.querySelectorAll('.cost-text').forEach((el: any) => {
+            el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.transform = 'translate(-1.5px, -3.8px)'; 
           });
         }
       });
@@ -285,15 +407,6 @@ export default function CardsPage() {
       const link = document.createElement('a');
       link.download = `STS-Tier.png`; link.href = canvas.toDataURL('image/png'); link.click();
     }, 500);
-  };
-
-  const shareX = () => {
-    const currentChar = characters.find(c => c.id === activeTab)?.name || "";
-    const charText = currentChar ? `【${currentChar}】` : "";
-    const text = encodeURIComponent(`Slay the Spire 2 ${charText} Tier List を作成しました！\n`);
-    const url = encodeURIComponent(generateShareURL()); 
-    const hashtags = encodeURIComponent("スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2");
-    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=${hashtags}`, '_blank');
   };
 
   return (
@@ -305,7 +418,7 @@ export default function CardsPage() {
         </button>
       </nav>
 
-      <div className="max-w-7xl mx-auto mb-10 overflow-x-auto text-center scrollbar-hide">
+      <div className="max-w-7xl mx-auto mb-4 overflow-x-auto text-center scrollbar-hide">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
           <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black transition-all ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>ALL</button>
           {characters.map((char) => (
@@ -314,14 +427,20 @@ export default function CardsPage() {
         </div>
       </div>
 
+      {!isTierMode && (
+        <div className="max-w-7xl mx-auto mb-10 flex justify-center">
+          <FilterControls />
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-40 animate-pulse text-[10px] font-black tracking-widest text-[#3b82f6]">SYNCHRONIZING...</div>
       ) : isTierMode ? (
         <div className="max-w-5xl mx-auto">
           <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <div className="flex justify-end gap-2 mb-4">
-              <button onClick={handleCopyLink} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
-              <button onClick={shareX} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#ffffff1a]">Share on X</button>
+              <button onClick={() => { generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+              <button onClick={shareX} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
               <button onClick={exportPNG} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
             </div>
             
@@ -329,28 +448,31 @@ export default function CardsPage() {
               {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} />)}
             </div>
 
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 px-1">
+              <h3 className="text-[9px] font-black text-[#64748b] uppercase tracking-[0.3em]">Card Pool ({filteredPoolCards.length})</h3>
+              <FilterControls />
+            </div>
+
             <div className="bg-[#0f172a80] p-4 md:p-6 border border-[#ffffff0d] rounded-sm w-full">
-              <h3 className="text-[9px] font-black text-[#64748b] mb-6 uppercase tracking-[0.3em]">Card Pool</h3>
               <div className="flex flex-wrap gap-x-3 gap-y-10 min-h-[150px] w-full justify-start items-start">
-                <SortableContext items={tierData.pool.map(c => c.id)} strategy={horizontalListSortingStrategy}>
-                  {tierData.pool.map(card => <SortableCard key={card.id} card={card} onHover={handleHover} onMove={updatePos} />)}
+                <SortableContext items={filteredPoolCards.map(c => c.id)} strategy={horizontalListSortingStrategy}>
+                  {filteredPoolCards.map(card => <SortableCard key={card.id} card={card} onHover={handleHover} onMove={updatePos} />)}
                 </SortableContext>
               </div>
             </div>
 
             <DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: '0.4' } } }) }}>
-              {activeId ? <SortableCard card={Object.values(tierData).flat().find(c => c.id === activeId)!} isOverlay /> : null}
+              {activeId ? <SortableCard card={allCards.find(c => c.id === activeId)!} isOverlay /> : null}
             </DragOverlay>
           </DndContext>
         </div>
       ) : (
         <div className="max-w-7xl mx-auto grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-x-2 gap-y-12">
-          {allCards.map((card) => {
+          {filteredDisplayCards.map((card) => {
             const color = getRarityColor(card.rarity);
             return (
               <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50" 
-                   onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}
-                   onClick={(e) => { e.stopPropagation(); handleHover(card, e); }}>
+                   onMouseEnter={(e) => handleHover(card, e)} onMouseMove={updatePos} onMouseLeave={() => setHoveredCard(null)}>
                 <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                   <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
                     <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
@@ -368,21 +490,40 @@ export default function CardsPage() {
       )}
 
       {hoveredCard && !activeId && (
-        <div className="fixed z-[500] pointer-events-none w-64 bg-[#0f172a] border-2 shadow-2xl rounded-sm transition-opacity duration-200" 
+        <div className="fixed z-[500] pointer-events-none w-72 bg-[#0d0d12] border-2 shadow-2xl rounded-sm overflow-hidden flex flex-col" 
              style={{ left: mousePos.x, top: mousePos.y, borderColor: getRarityColor(hoveredCard.rarity) }}>
-          <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a] flex justify-between items-center">
-            <h3 className="text-xs font-black text-white">{hoveredCard.name}</h3>
-            <span className="text-base font-black italic" style={{ color: getRarityColor(hoveredCard.rarity) }}>{hoveredCard.cost === -1 ? 'X' : hoveredCard.cost}</span>
+          
+          <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a]">
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[8px] font-black text-[#64748b] uppercase tracking-tighter">NORMAL</span>
+              <span className="text-sm font-black italic text-white">{hoveredCard.cost === -1 ? 'X' : hoveredCard.cost}</span>
+            </div>
+            <h3 className="text-xs font-black text-white mb-2">{hoveredCard.name}</h3>
+            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" 
+                  dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, false) }} />
           </div>
-          <div className="p-3 bg-[#020617] text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard) }} />
+
+          <div className="p-3 bg-[#020617] relative">
+            <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#7cfc004d] to-transparent"></div>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[8px] font-black text-[#7cfc00] uppercase tracking-tighter">UPGRADED +</span>
+              <span className="text-sm font-black italic" 
+                    style={{ color: (hoveredCard.upgrade?.cost !== undefined && hoveredCard.upgrade.cost < hoveredCard.cost) ? '#7cfc00' : 'white' }}>
+                {hoveredCard.upgrade?.cost !== undefined ? (hoveredCard.upgrade.cost === -1 ? 'X' : hoveredCard.upgrade.cost) : (hoveredCard.cost === -1 ? 'X' : hoveredCard.cost)}
+              </span>
+            </div>
+            <h3 className="text-xs font-black text-[#7cfc00] mb-2">{hoveredCard.name}+</h3>
+            <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" 
+                  dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, true) }} />
+          </div>
         </div>
       )}
 
       <style jsx global>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .spire-desc b, .spire-desc strong { color: #fde047; font-weight: 800; }
-        * { -webkit-tap-highlight-color: transparent; }
         .touch-none { touch-action: none; }
+        select option { background: #0f172a; color: #fff; }
       `}</style>
     </main>
   );
