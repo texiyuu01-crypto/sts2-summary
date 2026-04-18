@@ -459,6 +459,7 @@ export default function CardsPage() {
     await new Promise(resolve => setTimeout(resolve, extraWait));
 
     // クローン上で計算済みスタイルをインライン化してズレの原因を排除
+    // ただし cost-badge / cost-text は transform を保持して微調整が効くようにする
     clone.querySelectorAll('*').forEach((el: any) => {
       try {
         const cs = getComputedStyle(el);
@@ -472,7 +473,9 @@ export default function CardsPage() {
           el.style.borderColor = cs.borderColor;
           el.style.boxSizing = 'border-box';
         }
-        if (cs.transform && cs.transform !== 'none') el.style.transform = 'none';
+        // cost 関連は transform を保持しておく
+        const skipTransform = el.classList && (el.classList.contains('cost-text') || el.classList.contains('cost-badge'));
+        if (!skipTransform && cs.transform && cs.transform !== 'none') el.style.transform = 'none';
         el.style.padding = cs.padding;
         el.style.margin = cs.margin;
       } catch (e) {}
@@ -523,7 +526,12 @@ export default function CardsPage() {
         }
         const span = badge.querySelector('.cost-text');
         if (span) {
-          span.style.transform = 'none';
+          try {
+            const cs = getComputedStyle(span);
+            span.style.transform = cs.transform || ''; // 元の transform を保持
+          } catch (e) {
+            span.style.transform = '';
+          }
           span.style.display = 'block';
           if (r.height) span.style.lineHeight = `${Math.round(r.height)}px`;
           span.style.padding = '0';
