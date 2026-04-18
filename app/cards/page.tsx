@@ -542,7 +542,7 @@ export default function CardsPage() {
     const cloneCostEls = Array.from(clone.querySelectorAll('.cost-text')) as HTMLElement[];
     const clonePrev = cloneCostEls.map(el => el.style.transform || '');
     try {
-      cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-25%)`; } catch (e) {} });
+      cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-30%)`; } catch (e) {} });
 
       // html2canvas 実行（DPR を考慮した scale）
       const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
