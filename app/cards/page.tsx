@@ -417,102 +417,90 @@ export default function CardsPage() {
     const wasCompact = isCompact;
     setIsCompact(false);
 
-    // フォント読み込み完了と画像読み込みを待つ
+    // 後続で使う devicePixelRatio を取得
+    const DPR = Math.max(1, window.devicePixelRatio || 1);
+
+    // フォント・画像の読み込みを待つ
     try { await (document as any).fonts.ready; } catch (e) {}
     const imgs = Array.from(tierRef.current.querySelectorAll('img')) as HTMLImageElement[];
     await Promise.all(imgs.map(img => new Promise(r => { if (img.complete) return r(null); img.onload = img.onerror = () => r(null); })));
 
-    // レイアウト安定のため2フレーム待機
+    // オフスクリーンでクローンを作り、表示の影響を受けない確定レイアウトを作る
+    const clone = tierRef.current.cloneNode(true) as HTMLElement;
+    clone.style.width = '1024px';
+    clone.style.transform = 'none';
+    clone.style.position = 'fixed';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.zIndex = '99999';
+    document.body.appendChild(clone);
+
+    // クローン内の画像読み込みを待つ
+    const cImgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
+    await Promise.all(cImgs.map(img => new Promise(r => { if (img.complete) return r(null); img.onload = img.onerror = () => r(null); })));
+
+    // レイアウト安定のため2フレーム + モバイルでは余裕を持つ
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-
-    const originalWidth = tierRef.current!.style.width;
-    tierRef.current!.style.width = '1024px';
-    tierRef.current!.style.transform = 'none';
-
-    const extraWait = isMobile ? 600 : 250;
+    const extraWait = isMobile ? 1000 : 300;
     await new Promise(resolve => setTimeout(resolve, extraWait));
 
-    const canvas = await html2canvas(tierRef.current!, {
-      backgroundColor: '#020617',
-      useCORS: true,
-      scale: 3,
-      width: 1024,
-      onclone: (clonedDoc: any) => {
-        const root = clonedDoc.querySelector('.export-target') as HTMLElement | null;
-        if (root) {
-          root.style.width = '1024px';
-          root.style.transform = 'none';
-          root.style.boxSizing = 'border-box';
+    // クローン上で計算済みスタイルをインライン化してズレの原因を排除
+    clone.querySelectorAll('*').forEach((el: any) => {
+      try {
+        const cs = getComputedStyle(el);
+        if (!cs) return;
+        if (cs.borderStyle && cs.borderStyle !== 'none') {
+          el.style.borderLeftWidth = cs.borderLeftWidth;
+          el.style.borderRightWidth = cs.borderRightWidth;
+          el.style.borderTopWidth = cs.borderTopWidth;
+          el.style.borderBottomWidth = cs.borderBottomWidth;
+          el.style.borderStyle = cs.borderStyle;
+          el.style.borderColor = cs.borderColor;
+          el.style.boxSizing = 'border-box';
         }
-
-        // すべての要素で計算されたボーダー幅と transform をインラインに固定
-        clonedDoc.querySelectorAll('*').forEach((el: any) => {
-          try {
-            const cs = getComputedStyle(el);
-            if (cs) {
-              if (cs.borderStyle !== 'none') {
-                el.style.borderLeftWidth = cs.borderLeftWidth;
-                el.style.borderRightWidth = cs.borderRightWidth;
-                el.style.borderTopWidth = cs.borderTopWidth;
-                el.style.borderBottomWidth = cs.borderBottomWidth;
-                el.style.borderStyle = cs.borderStyle;
-                el.style.borderColor = cs.borderColor;
-                el.style.boxSizing = 'border-box';
-              }
-              if (cs.transform && cs.transform !== 'none') {
-                el.style.transform = 'none';
-              }
-              el.style.padding = cs.padding;
-              el.style.margin = cs.margin;
-            }
-          } catch (e) {}
-        });
-
-        // 画像をピクセル固定
-        clonedDoc.querySelectorAll('img').forEach((img: any) => {
-          try {
-            const r = img.getBoundingClientRect();
-            if (r.width && r.height) {
-              img.style.width = `${Math.round(r.width)}px`;
-              img.style.height = `${Math.round(r.height)}px`;
-              img.style.maxWidth = 'none';
-            }
-          } catch (e) {}
-        });
-
-        // SVG の補正: 非スケーリングストロークを付与、必要なら stroke-width を補正
-        clonedDoc.querySelectorAll('svg').forEach((svg: any) => {
-          try {
-            svg.style.vectorEffect = 'non-scaling-stroke';
-            const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
-            const rect = svg.getBoundingClientRect();
-            if (vb && rect.width && vb.width) {
-              const scale = rect.width / vb.width;
-              svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
-                const orig = parseFloat(p.getAttribute('stroke-width') || '1');
-                p.setAttribute('stroke-width', String(Math.max(1, orig * scale)));
-                p.setAttribute('vector-effect', 'non-scaling-stroke');
-              });
-            } else {
-              svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
-                p.setAttribute('vector-effect', 'non-scaling-stroke');
-              });
-            }
-            // 明示的に width/height をセット
-            if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
-            if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
-          } catch (e) {}
-        });
-
-        // 既存のコストテキスト調整
-        clonedDoc.querySelectorAll('.cost-text').forEach((el: any) => {
-          el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.transform = 'translate(-1.5px, -3.8px)';
-        });
-      }
+        if (cs.transform && cs.transform !== 'none') el.style.transform = 'none';
+        el.style.padding = cs.padding;
+        el.style.margin = cs.margin;
+      } catch (e) {}
     });
 
-    // 元に戻す
-    tierRef.current!.style.width = originalWidth;
+    // 画像をピクセル固定
+    clone.querySelectorAll('img').forEach((img: any) => {
+      try {
+        const r = img.getBoundingClientRect();
+        if (r.width && r.height) {
+          img.style.width = `${Math.round(r.width)}px`;
+          img.style.height = `${Math.round(r.height)}px`;
+          img.style.maxWidth = 'none';
+        }
+      } catch (e) {}
+    });
+
+    // SVG 補正
+    clone.querySelectorAll('svg').forEach((svg: any) => {
+      try {
+        const rect = svg.getBoundingClientRect();
+        const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+        if (vb && rect.width && vb.width) {
+          const scale = rect.width / vb.width;
+          svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
+            const orig = parseFloat(p.getAttribute('stroke-width') || '1');
+            p.setAttribute('stroke-width', String(Math.max(1, orig * scale)));
+            p.setAttribute('vector-effect', 'non-scaling-stroke');
+          });
+        } else {
+          svg.querySelectorAll('[stroke-width]').forEach((p: any) => p.setAttribute('vector-effect', 'non-scaling-stroke'));
+        }
+        if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
+        if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
+      } catch (e) {}
+    });
+
+    // html2canvas 実行（DPR を考慮した scale）
+    const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
+
+    // クローン削除と復元
+    document.body.removeChild(clone);
     setIsCompact(wasCompact);
 
     const link = document.createElement('a');
