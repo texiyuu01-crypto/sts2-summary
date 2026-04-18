@@ -415,8 +415,12 @@ export default function CardsPage() {
     if (!tierRef.current) return;
     setHoveredCard(null);
     const wasCompact = isCompact;
-    // 保持は格納状態にしておく
     setIsCompact(false);
+
+    // フォント読み込み完了と画像読み込みを待つ
+    try { await (document as any).fonts.ready; } catch (e) {}
+    const imgs = Array.from(tierRef.current.querySelectorAll('img')) as HTMLImageElement[];
+    await Promise.all(imgs.map(img => new Promise(r => { if (img.complete) return r(null); img.onload = img.onerror = () => r(null); })));
 
     // レイアウト安定のため2フレーム待機
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
@@ -425,8 +429,8 @@ export default function CardsPage() {
     tierRef.current!.style.width = '1024px';
     tierRef.current!.style.transform = 'none';
 
-    // 少し余裕を持ってレイアウト反映を待つ
-    await new Promise(resolve => setTimeout(resolve, 250));
+    const extraWait = isMobile ? 600 : 250;
+    await new Promise(resolve => setTimeout(resolve, extraWait));
 
     const canvas = await html2canvas(tierRef.current!, {
       backgroundColor: '#020617',
@@ -434,7 +438,6 @@ export default function CardsPage() {
       scale: 3,
       width: 1024,
       onclone: (clonedDoc: any) => {
-        // ルートを固定幅にして確実に再レイアウト
         const root = clonedDoc.querySelector('.export-target') as HTMLElement | null;
         if (root) {
           root.style.width = '1024px';
@@ -442,7 +445,30 @@ export default function CardsPage() {
           root.style.boxSizing = 'border-box';
         }
 
-        // 画像をレンダリング済みのピクセル幅で固定
+        // すべての要素で計算されたボーダー幅と transform をインラインに固定
+        clonedDoc.querySelectorAll('*').forEach((el: any) => {
+          try {
+            const cs = getComputedStyle(el);
+            if (cs) {
+              if (cs.borderStyle !== 'none') {
+                el.style.borderLeftWidth = cs.borderLeftWidth;
+                el.style.borderRightWidth = cs.borderRightWidth;
+                el.style.borderTopWidth = cs.borderTopWidth;
+                el.style.borderBottomWidth = cs.borderBottomWidth;
+                el.style.borderStyle = cs.borderStyle;
+                el.style.borderColor = cs.borderColor;
+                el.style.boxSizing = 'border-box';
+              }
+              if (cs.transform && cs.transform !== 'none') {
+                el.style.transform = 'none';
+              }
+              el.style.padding = cs.padding;
+              el.style.margin = cs.margin;
+            }
+          } catch (e) {}
+        });
+
+        // 画像をピクセル固定
         clonedDoc.querySelectorAll('img').forEach((img: any) => {
           try {
             const r = img.getBoundingClientRect();
@@ -454,9 +480,10 @@ export default function CardsPage() {
           } catch (e) {}
         });
 
-        // SVG の stroke を安定させる（非スケーリング属性を付与、必要なら stroke-width 補正）
+        // SVG の補正: 非スケーリングストロークを付与、必要なら stroke-width を補正
         clonedDoc.querySelectorAll('svg').forEach((svg: any) => {
           try {
+            svg.style.vectorEffect = 'non-scaling-stroke';
             const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
             const rect = svg.getBoundingClientRect();
             if (vb && rect.width && vb.width) {
@@ -471,6 +498,9 @@ export default function CardsPage() {
                 p.setAttribute('vector-effect', 'non-scaling-stroke');
               });
             }
+            // 明示的に width/height をセット
+            if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
+            if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
           } catch (e) {}
         });
 
