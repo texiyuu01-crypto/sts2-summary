@@ -538,18 +538,29 @@ export default function CardsPage() {
         }
       } catch (e) {}
     });
+    // エクスポート時のみクローン内の数字を上に持ち上げる（表示には影響しない）
+    const cloneCostEls = Array.from(clone.querySelectorAll('.cost-text')) as HTMLElement[];
+    const clonePrev = cloneCostEls.map(el => el.style.transform || '');
+    try {
+      cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-25%)`; } catch (e) {} });
 
-    // html2canvas 実行（DPR を考慮した scale）
-    const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
+      // html2canvas 実行（DPR を考慮した scale）
+      const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
 
-    // クローン削除と復元
-    document.body.removeChild(clone);
-    setIsCompact(wasCompact);
+      // クローン削除と復元
+      document.body.removeChild(clone);
+      setIsCompact(wasCompact);
 
-    const link = document.createElement('a');
-    link.download = `STS-Tier.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+      const link = document.createElement('a');
+      link.download = `STS-Tier.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } finally {
+      // safety: restore inline transforms on clone elements if still present
+      clonePrev.forEach((val, i) => { try { if (cloneCostEls[i]) cloneCostEls[i].style.transform = val; } catch (e) {} });
+      try { if (document.body.contains(clone)) document.body.removeChild(clone); } catch (e) {}
+      setIsCompact(wasCompact);
+    }
   };
 
   
