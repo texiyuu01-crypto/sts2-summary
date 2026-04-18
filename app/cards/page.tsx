@@ -192,7 +192,7 @@ export default function CardsPage() {
   const [allCards, setAllCards] = useState<SpireCard[]>([]);
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [filterType, setFilterType] = useState('all');
   const [filterRarity, setFilterRarity] = useState('all');
   const [filterKeyword, setFilterKeyword] = useState('all');
@@ -330,6 +330,7 @@ export default function CardsPage() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === null) return; // 待機: キャラクターが決まるまでフェッチしない
     setLoading(true);
     const colorQuery = activeTab === 'all' ? '' : `&color=${activeTab}`;
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
@@ -420,10 +421,19 @@ export default function CardsPage() {
     // 後続で使う devicePixelRatio を取得
     const DPR = Math.max(1, window.devicePixelRatio || 1);
 
-    // フォント・画像の読み込みを待つ
-    try { await (document as any).fonts.ready; } catch (e) {}
+    // フォント・画像の読み込みを待つ（タイムアウト付きで高速化）
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+    try { await Promise.race([(document as any).fonts.ready, wait(150)]); } catch (e) {}
     const imgs = Array.from(tierRef.current.querySelectorAll('img')) as HTMLImageElement[];
-    await Promise.all(imgs.map(img => new Promise(r => { if (img.complete) return r(null); img.onload = img.onerror = () => r(null); })));
+    const imgLoadWithTimeout = (img: HTMLImageElement, timeout = 300) => new Promise(r => {
+      if (img.complete) return r(null);
+      let done = false;
+      const fin = () => { if (done) return; done = true; r(null); };
+      img.onload = fin; img.onerror = fin;
+      setTimeout(fin, timeout);
+    });
+    const imgPromises = imgs.map(img => imgLoadWithTimeout(img, 300));
+    await Promise.all(imgPromises);
 
     // オフスクリーンでクローンを作り、表示の影響を受けない確定レイアウトを作る
     const clone = tierRef.current.cloneNode(true) as HTMLElement;
@@ -435,13 +445,17 @@ export default function CardsPage() {
     clone.style.zIndex = '99999';
     document.body.appendChild(clone);
 
-    // クローン内の画像読み込みを待つ
-    const cImgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
-    await Promise.all(cImgs.map(img => new Promise(r => { if (img.complete) return r(null); img.onload = img.onerror = () => r(null); })));
+    // クローン内の画像読み込みを待つ（オリジナルが既に全て読み込み済みならスキップ）
+    const originalAllLoaded = imgs.every(i => i.complete);
+    if (!originalAllLoaded) {
+      const cImgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
+      const cPromises = cImgs.map(img => imgLoadWithTimeout(img, isMobile ? 500 : 300));
+      await Promise.all(cPromises);
+    }
 
-    // レイアウト安定のため2フレーム + モバイルでは余裕を持つ
+    // レイアウト安定のため2フレーム待機。余裕待ちを短縮
     await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    const extraWait = isMobile ? 1000 : 300;
+    const extraWait = isMobile ? 450 : 150;
     await new Promise(resolve => setTimeout(resolve, extraWait));
 
     // クローン上で計算済みスタイルをインライン化してズレの原因を排除
@@ -493,6 +507,27 @@ export default function CardsPage() {
         }
         if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
         if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
+      } catch (e) {}
+    });
+
+    // cost-badge をピクセル固定して中央揃えを厳密に指定（PNGでのズレ対策）
+    clone.querySelectorAll('.cost-badge').forEach((badge: any) => {
+      try {
+        const r = badge.getBoundingClientRect();
+        if (r.width && r.height) {
+          badge.style.width = `${Math.round(r.width)}px`;
+          badge.style.height = `${Math.round(r.height)}px`;
+          badge.style.display = 'flex';
+          badge.style.alignItems = 'center';
+          badge.style.justifyContent = 'center';
+        }
+        const span = badge.querySelector('.cost-text');
+        if (span) {
+          span.style.transform = 'none';
+          span.style.display = 'block';
+          if (r.height) span.style.lineHeight = `${Math.round(r.height)}px`;
+          span.style.padding = '0';
+        }
       } catch (e) {}
     });
 
