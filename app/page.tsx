@@ -7,7 +7,7 @@ export default function Home() {
   const tools = [
     {
       id: 'cards',
-      title: '陛下専用カード名鑑 ＆ Tier Maker',
+      title: 'Tier メーカー (カード一覧)',
       description: '全カードの閲覧と、自分だけの Tier表作成・書き出し',
       category: 'DATABASE / TOOL',
       path: '/cards',
@@ -66,37 +66,6 @@ export default function Home() {
 
       <div className="w-full max-w-3xl space-y-12">
         
-        {/* --- まとめ記事 セクション --- */}
-        <section>
-          <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-orange-500">
-            <span className="w-1.5 h-6 bg-orange-600"></span>
-            LATEST POSTS
-          </h2>
-          <div className="space-y-4">
-            {posts.map((post) => (
-              <Link 
-                key={post.id}
-                href={post.status === 'published' ? `/posts/${post.id}` : '#'} 
-                className={`block p-4 rounded-lg border transition-all ${
-                  post.status === 'published' 
-                  ? 'bg-slate-800 border-slate-700 hover:border-orange-500 shadow-sm' 
-                  : 'bg-slate-800/40 border-slate-800 cursor-not-allowed opacity-60'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-400">
-                    {post.category}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">{post.date}</span>
-                </div>
-                <h3 className={`font-bold ${post.status === 'published' ? 'text-slate-200' : 'text-slate-500'}`}>
-                  {post.title}
-                </h3>
-              </Link>
-            ))}
-          </div>
-        </section>
-
         {/* --- ツール・データベース セクション --- */}
         <section>
           <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-yellow-500">
@@ -123,6 +92,37 @@ export default function Home() {
                   <h3 className={`font-bold leading-tight ${tool.status === 'draft' ? 'text-slate-500' : 'text-slate-100'}`}>{tool.title}</h3>
                   <p className="text-[10px] text-slate-400 mt-1">{tool.description}</p>
                 </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* --- まとめ記事 セクション --- */}
+        <section>
+          <h2 className="text-xl font-black mb-4 flex items-center gap-2 text-orange-500">
+            <span className="w-1.5 h-6 bg-orange-600"></span>
+            LATEST POSTS
+          </h2>
+          <div className="space-y-4">
+            {posts.map((post) => (
+              <Link 
+                key={post.id}
+                href={post.status === 'published' ? `/posts/${post.id}` : '#'} 
+                className={`block p-4 rounded-lg border transition-all ${
+                  post.status === 'published' 
+                  ? 'bg-slate-800 border-slate-700 hover:border-orange-500 shadow-sm' 
+                  : 'bg-slate-800/40 border-slate-800 cursor-not-allowed opacity-60'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-700 text-slate-400">
+                    {post.category}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-mono">{post.date}</span>
+                </div>
+                <h3 className={`font-bold ${post.status === 'published' ? 'text-slate-200' : 'text-slate-500'}`}>
+                  {post.title}
+                </h3>
               </Link>
             ))}
           </div>
