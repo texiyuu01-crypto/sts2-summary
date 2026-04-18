@@ -415,23 +415,80 @@ export default function CardsPage() {
     if (!tierRef.current) return;
     setHoveredCard(null);
     const wasCompact = isCompact;
+    // 保持は格納状態にしておく
     setIsCompact(false);
-    setTimeout(async () => {
-      const originalWidth = tierRef.current!.style.width;
-      tierRef.current!.style.width = "1024px"; 
-      const canvas = await html2canvas(tierRef.current!, { 
-        backgroundColor: '#020617', useCORS: true, scale: 3, width: 1024,
-        onclone: (clonedDoc) => {
-          clonedDoc.querySelectorAll('.cost-text').forEach((el: any) => {
-            el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.transform = 'translate(-1.5px, -3.8px)'; 
-          });
+
+    // レイアウト安定のため2フレーム待機
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+    const originalWidth = tierRef.current!.style.width;
+    tierRef.current!.style.width = '1024px';
+    tierRef.current!.style.transform = 'none';
+
+    // 少し余裕を持ってレイアウト反映を待つ
+    await new Promise(resolve => setTimeout(resolve, 250));
+
+    const canvas = await html2canvas(tierRef.current!, {
+      backgroundColor: '#020617',
+      useCORS: true,
+      scale: 3,
+      width: 1024,
+      onclone: (clonedDoc: any) => {
+        // ルートを固定幅にして確実に再レイアウト
+        const root = clonedDoc.querySelector('.export-target') as HTMLElement | null;
+        if (root) {
+          root.style.width = '1024px';
+          root.style.transform = 'none';
+          root.style.boxSizing = 'border-box';
         }
-      });
-      tierRef.current!.style.width = originalWidth;
-      setIsCompact(wasCompact);
-      const link = document.createElement('a');
-      link.download = `STS-Tier.png`; link.href = canvas.toDataURL('image/png'); link.click();
-    }, 200);
+
+        // 画像をレンダリング済みのピクセル幅で固定
+        clonedDoc.querySelectorAll('img').forEach((img: any) => {
+          try {
+            const r = img.getBoundingClientRect();
+            if (r.width && r.height) {
+              img.style.width = `${Math.round(r.width)}px`;
+              img.style.height = `${Math.round(r.height)}px`;
+              img.style.maxWidth = 'none';
+            }
+          } catch (e) {}
+        });
+
+        // SVG の stroke を安定させる（非スケーリング属性を付与、必要なら stroke-width 補正）
+        clonedDoc.querySelectorAll('svg').forEach((svg: any) => {
+          try {
+            const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+            const rect = svg.getBoundingClientRect();
+            if (vb && rect.width && vb.width) {
+              const scale = rect.width / vb.width;
+              svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
+                const orig = parseFloat(p.getAttribute('stroke-width') || '1');
+                p.setAttribute('stroke-width', String(Math.max(1, orig * scale)));
+                p.setAttribute('vector-effect', 'non-scaling-stroke');
+              });
+            } else {
+              svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
+                p.setAttribute('vector-effect', 'non-scaling-stroke');
+              });
+            }
+          } catch (e) {}
+        });
+
+        // 既存のコストテキスト調整
+        clonedDoc.querySelectorAll('.cost-text').forEach((el: any) => {
+          el.style.fontSize = '10px'; el.style.fontWeight = '900'; el.style.transform = 'translate(-1.5px, -3.8px)';
+        });
+      }
+    });
+
+    // 元に戻す
+    tierRef.current!.style.width = originalWidth;
+    setIsCompact(wasCompact);
+
+    const link = document.createElement('a');
+    link.download = `STS-Tier.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   };
 
   
