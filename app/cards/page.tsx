@@ -157,12 +157,13 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
   );
 };
 
-const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards: SpireCard[], onHover: any, onMove: any, isCompact: boolean }) => {
+const TierRow = ({ tier, cards, onHover, onMove, isCompact, onToggleCompact }: { tier: any, cards: SpireCard[], onHover: any, onMove: any, isCompact: boolean, onToggleCompact?: () => void }) => {
   const { setNodeRef, isOver } = useSortable({ id: tier.id });
   if (isCompact) {
     return (
       <div ref={setNodeRef} 
-        className={`flex-1 flex flex-col items-center justify-center h-14 border-r border-[#000] transition-colors ${isOver ? 'brightness-125' : ''}`}
+        onClick={() => onToggleCompact?.()}
+        className={`flex-1 flex flex-col items-center justify-center h-14 border-r border-[#000] transition-colors cursor-pointer ${isOver ? 'brightness-125' : ''}`}
         style={{ backgroundColor: tier.color }}>
         <span className="text-lg font-black text-black leading-none">{tier.label}</span>
         <span className="text-[9px] font-bold text-black opacity-50">({cards.length})</span>
@@ -171,7 +172,7 @@ const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards
   }
   return (
     <div className="flex border-b border-[#1e293b] min-h-[105px] bg-[#0d0d12]">
-      <div style={{ backgroundColor: tier.color }} className="w-12 md:w-20 flex items-center justify-center shrink-0 border-r border-[#000000] z-20">
+      <div style={{ backgroundColor: tier.color }} onClick={() => onToggleCompact?.()} className="w-12 md:w-20 flex items-center justify-center shrink-0 border-r border-[#000000] z-20 cursor-pointer">
         <span className="text-xl font-black text-[#000000]">{tier.label}</span>
       </div>
       <div ref={setNodeRef} className={`flex-1 p-3 flex flex-wrap gap-x-2 gap-y-6 content-start min-w-[300px] ${isOver ? 'bg-white/5' : ''}`}>
@@ -185,8 +186,8 @@ const TierRow = ({ tier, cards, onHover, onMove, isCompact }: { tier: any, cards
 
 // --- Main Page ---
 export default function CardsPage() {
-  const [isTierMode, setIsTierMode] = useState(false);
-  const [isCompact, setIsCompact] = useState(false);
+  const [isTierMode, setIsTierMode] = useState(true);
+  const [isCompact, setIsCompact] = useState(true);
   const [characters, setCharacters] = useState<{id: string, name: string}[]>([]);
   const [allCards, setAllCards] = useState<SpireCard[]>([]);
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
@@ -320,6 +321,10 @@ export default function CardsPage() {
           // 共有リンク優先: URLパラメータがある場合は展開(false)にする
           setIsCompact(false);
         } catch(e) {}
+      } else {
+        if (sorted && sorted.length > 0) setActiveTab(sorted[0].id);
+        setIsTierMode(true);
+        setIsCompact(true);
       }
     });
   }, []);
@@ -429,41 +434,20 @@ export default function CardsPage() {
     }, 200);
   };
 
-  const toggleTierMode = () => {
-    const nextMode = !isTierMode;
-    setIsTierMode(nextMode);
-    setHoveredCard(null);
-    // 【修正ポイント】手動でのモード切替時はその時の画面幅でコンパクト化を判断
-    if (nextMode) setIsCompact(window.innerWidth < 768);
-  };
+  
 
   return (
     <main className="min-h-screen bg-[#0d0d12] text-[#e2e8f0] p-4 md:p-8 font-sans" onClick={() => setHoveredCard(null)}>
       <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
         <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
-        <button 
-          onClick={toggleTierMode} 
-          className={`group relative flex items-center gap-2 px-5 py-2.5 text-[11px] font-black rounded-sm border transition-all duration-300
-            ${isTierMode ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-gradient-to-br from-[#3b82f6] to-[#2563eb] text-white border-[#60a5fa] hover:brightness-110 shadow-[0_0_15px_rgba(59,130,246,0.5)] active:scale-95'}`}
-        >
-          {isTierMode ? (
-            <span>CLOSE EDITOR</span>
-          ) : (
-            <>
-              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M3 4h18v2H3V4zm0 7h18v2H3v-2zm0 7h18v2H3v-2z" /></svg>
-              <span className="tracking-wider">TIER MAKER</span>
-              <div className="absolute -inset-[2px] rounded-sm border border-[#3b82f6] animate-ping opacity-20 pointer-events-none group-hover:opacity-40"></div>
-            </>
-          )}
-        </button>
       </nav>
 
       <div className="max-w-7xl mx-auto mb-4 overflow-x-auto text-center scrollbar-hide">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
-          <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black transition-all ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>ALL</button>
           {characters.map((char) => (
             <button key={char.id} onClick={() => setActiveTab(char.id)} className={`px-4 py-1.5 rounded-sm text-[9px] font-black uppercase transition-all ${activeTab === char.id ? 'bg-[#2563eb] text-white' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>{char.name}</button>
           ))}
+          <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black transition-all ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>ALL</button>
         </div>
       </div>
 
@@ -492,7 +476,7 @@ export default function CardsPage() {
             
             <div ref={tierRef} className={`export-target border border-[#1e293b] rounded-sm overflow-hidden mb-8 bg-[#020617] shadow-2xl w-full ${isCompact ? 'sticky top-2 z-[100]' : ''}`}>
               <div className={isCompact ? 'flex' : 'flex flex-col'}>
-                {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} isCompact={isCompact} />)}
+                {TIER_ROWS.map(tier => <TierRow key={tier.id} tier={tier} cards={tierData[tier.id]} onHover={handleHover} onMove={updatePos} isCompact={isCompact} onToggleCompact={() => setIsCompact(prev => !prev)} />)}
               </div>
             </div>
 
