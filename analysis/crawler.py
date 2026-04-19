@@ -8,7 +8,11 @@ DATA_PATH = os.path.join(os.path.dirname(__file__), '../src/data/full_run_detail
 def load_existing_data():
     if os.path.exists(DATA_PATH):
         with open(DATA_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                # File exists but is empty or invalid JSON; treat as no data
+                return []
     return []
 
 def crawl():
