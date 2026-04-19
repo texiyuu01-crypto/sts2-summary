@@ -2,14 +2,16 @@ name: Scheduled Analysis
 
 on:
   schedule:
-    - cron: '0 * * * *' # 1時間に1回実行
-  workflow_dispatch:      # 手動実行ボタンも作成
+    - cron: '0 0 * * *' # 毎日日本時間の午前9時（UTC 0時）に1回実行
+  workflow_dispatch:      # 手動実行ボタン
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          lfs: true # Git LFSで管理された巨大JSONの実体を取得
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -27,6 +29,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add src/data/latest_runs.json
+          git add src/data/full_run_details.json
           git commit -m "Update latest runs data" || exit 0
           git push
