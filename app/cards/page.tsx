@@ -188,7 +188,7 @@ const TierRow = ({ tier, cards, onHover, onMove, isCompact, onToggleCompact }: {
 export default function CardsPage() {
   const [isTierMode, setIsTierMode] = useState(true);
   const [isCompact, setIsCompact] = useState(true);
-  const [characters, setCharacters] = useState<{id: string, name: string}[]>([]);
+  const [characters, setCharacters] = useState<{id: string, name: string, image_url?: string}[]>([]);
   const [allCards, setAllCards] = useState<SpireCard[]>([]);
   const [tierData, setTierData] = useState<Record<string, SpireCard[]>>({ pool: [], S: [], A: [], B: [], C: [], D: [] });
   const [loading, setLoading] = useState(true);
@@ -574,7 +574,13 @@ export default function CardsPage() {
       <div className="max-w-7xl mx-auto mb-4 overflow-x-auto text-center scrollbar-hide">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
           {characters.map((char) => (
-            <button key={char.id} onClick={() => setActiveTab(char.id)} className={`px-4 py-1.5 rounded-sm text-[9px] font-black uppercase transition-all ${activeTab === char.id ? 'bg-[#2563eb] text-white' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>{char.name}</button>
+            <button key={char.id} onClick={() => setActiveTab(char.id)} aria-label={char.name} title={char.name} className={`px-2 py-1 rounded-sm text-[9px] font-black uppercase transition-all flex items-center justify-center ${activeTab === char.id ? 'bg-[#2563eb] text-white' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>
+              {char.image_url ? (
+                <img src={formatImageUrl(char.image_url)} alt={char.name} className="w-6 h-6 object-cover rounded-sm" />
+              ) : (
+                <span className="text-[9px] font-black uppercase">{char.name}</span>
+              )}
+            </button>
           ))}
           <button onClick={() => setActiveTab('all')} className={`px-4 py-1.5 rounded-sm text-[9px] font-black transition-all ${activeTab === 'all' ? 'bg-[#e2e8f0] text-[#020617]' : 'text-[#64748b] hover:text-[#cbd5e1]'}`}>ALL</button>
         </div>

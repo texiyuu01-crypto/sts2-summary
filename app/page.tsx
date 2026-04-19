@@ -16,22 +16,22 @@ export default function Home() {
       color: 'border-yellow-500 shadow-yellow-500/10'
     },
     {
+      id: 'tier-stats', // IDを変更
+      title: '勝率・採用率統計レポート', // 件名を変更
+      description: '5,000件超のRunデータから導き出した最新Tier', // 説明文を更新
+      category: 'STATISTICS',
+      path: '/analysis/stats', // 遷移先パス（後述）
+      icon: '📈',
+      status: 'published', // ステータスを published に
+      color: 'border-blue-500 shadow-blue-500/10' // 色を青系に
+    },
+    {
       id: 'run-analyzer',
       title: 'Runデータ解析',
       description: 'あなたの敗因を陛下が指摘',
       category: 'TOOL',
       path: '#',
       icon: '📊',
-      status: 'draft',
-      color: 'border-slate-800 opacity-60'
-    },
-    {
-      id: 'post-stats',
-      title: '投稿頻度統計レポート',
-      description: '今、旬のビルドを解析',
-      category: 'STATISTICS',
-      path: '#',
-      icon: '📈',
       status: 'draft',
       color: 'border-slate-800 opacity-60'
     },
