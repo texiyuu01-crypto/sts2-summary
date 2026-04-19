@@ -18,7 +18,7 @@ function parseDescription(card: any) {
   // 特殊タグを HTML <b> に変換 (spire-descスタイル用)
   desc = desc
     .replace(/<name>.*?<\/name>/g, '')
-    .replace(/\[\w+\]/g, (m) => `<b class="text-yellow-400">${m}</b>`)
+    .replace(/\[\w+\]/g, (m: string) => `<b class="text-yellow-400">${m}</b>`)
     .replace(/<[^>]*>(.*?)<\/[^>]*>/g, '<b>$1</b>')
     .replace(/\n/g, '<br/>');
 
