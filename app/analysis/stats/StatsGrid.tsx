@@ -160,6 +160,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const [hovered, setHovered] = useState<any>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const tooltipRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{x:number,y:number}|null>(null);
+  const touchMovedRef = useRef(false);
+  const scrollTimeoutRef = useRef<number|undefined>(undefined);
+  const isTouchScrollingRef = useRef(false);
   const [charactersMeta, setCharactersMeta] = useState<Record<string, any>>({});
   const [runType, setRunType] = useState<'single'|'multi'>('single');
   const [includeColorless, setIncludeColorless] = useState(false);
@@ -180,6 +184,39 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       return available[0] || 'ALL';
     });
   }, [selectedVersion, JSON.stringify(selectedAscension)]);
+
+  // Document-level handlers: dismiss tooltip when tapping outside, and detect touch scrolling
+  useEffect(() => {
+    const onDocPointer = (e: any) => {
+      if (!tooltipRef.current) return;
+      const target = e.target as Node;
+      if (tooltipRef.current.contains(target)) return;
+      // allow taps on card elements (they have class 'group') to be handled by card handlers
+      const el = (e.target as HTMLElement) || null;
+      if (el && el.closest && el.closest('.group')) return;
+      setHovered(null);
+    };
+
+    const onTouchMove = () => {
+      isTouchScrollingRef.current = true;
+      touchMovedRef.current = true;
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = window.setTimeout(() => {
+        isTouchScrollingRef.current = false;
+      }, 200);
+    };
+
+    document.addEventListener('click', onDocPointer, true);
+    document.addEventListener('touchstart', onDocPointer, true);
+    document.addEventListener('touchmove', onTouchMove, { passive: true });
+
+    return () => {
+      document.removeEventListener('click', onDocPointer, true);
+      document.removeEventListener('touchstart', onDocPointer, true);
+      document.removeEventListener('touchmove', onTouchMove);
+      if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
 
   // キャラクター一覧を API から取得して画像などを紐付け
   useEffect(() => {
@@ -232,8 +269,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     setAscensions(['ALL', ...sortedA]);
     // defaults: ALL & A10 if present
     setSelectedVersion('ALL');
-    if (sortedA.includes('A10')) setSelectedAscension(['A10']);
-    else if (sortedA.length > 0) setSelectedAscension([sortedA[0]]);
+    // default ascension: ALL
+    setSelectedAscension('ALL');
   }, [statsData]);
 
   const updatePos = (e: any) => {
@@ -379,7 +416,19 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
           const image = api?.image_url || api?.image || '';
           const color = getRarityColor(api?.rarity || '');
           return (
-            <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50 bg-[#071021] border border-[#0f172a] rounded-sm overflow-hidden" onMouseEnter={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onMouseMove={updatePos} onMouseLeave={() => setHovered(null)} onClick={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onTouchStart={(e) => { setHovered({ api, stat: card }); updatePos(e); }}>
+            <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50 bg-[#071021] border border-[#0f172a] rounded-sm overflow-hidden" onMouseEnter={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onMouseMove={updatePos} onMouseLeave={() => setHovered(null)} onClick={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onTouchStart={(e: any) => { const t = e.touches?.[0]; touchStartRef.current = t ? { x: t.clientX, y: t.clientY } : null; touchMovedRef.current = false; }} onTouchMove={(e: any) => { touchMovedRef.current = true; /* keep updating pos so tooltip won't snap */ const t = e.touches?.[0]; if (t) updatePos(t); }} onTouchEnd={(e: any) => {
+                const moved = touchMovedRef.current || isTouchScrollingRef.current;
+                const t = e.changedTouches?.[0];
+                // if it was a gentle tap (no move/scroll), toggle/show tooltip; otherwise dismiss
+                if (!moved) {
+                  setHovered((prev: any) => (prev && prev.api && prev.api === api) ? null : { api, stat: card });
+                  if (t) updatePos(t);
+                } else {
+                  setHovered(null);
+                }
+                touchStartRef.current = null;
+                touchMovedRef.current = false;
+              }}>
               <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                 <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d] flex items-center justify-center">
                   <img src={formatImageUrl(image)} alt={api?.name || card.id} className="w-full h-full object-contain" />
