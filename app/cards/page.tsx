@@ -20,6 +20,9 @@ interface SpireCard {
   description: string;
   upgrade_description?: string;
   cost: number;
+  star_cost?: number;
+  is_x_cost?: boolean | null;
+  is_x_star_cost?: boolean | null;
   type: string;
   rarity: string;
   image_url: string;
@@ -27,6 +30,9 @@ interface SpireCard {
   vars?: Record<string, any>; 
   upgrade?: {
     cost?: number;
+    star_cost?: number;
+    is_x_cost?: boolean | null;
+    is_x_star_cost?: boolean | null;
     [key: string]: any; 
   };
   [key: string]: any;
@@ -74,12 +80,41 @@ const parseDescription = (card: SpireCard, isUpgraded: boolean = false) => {
     }
     return `${displayValue}${energyIcon}`;
   });
+  text = text.replace(/\[star:(\w+)\]/gi, (match, key) => {
+    const starIcon = '★';
+    
+    // 数字の場合
+    if (!isNaN(parseInt(key))) {
+      const numValue = parseInt(key);
+      // 0または1の場合は★のみ表示（「★を消費するたび」のような表現のため）
+      if (numValue === 0 || numValue === 1) {
+        return starIcon;
+      }
+      // 2以上の場合は数字を表示（「★2を得る」のような表現のため）
+      return `${starIcon}${key}`;
+    }
+    
+    // 文字列キーの場合はvarsから取得
+    const normalValue = card.vars?.[key] ?? card[key];
+    const upgradedValue = card.upgrade?.[key] ?? normalValue;
+    const displayValue = isUpgraded ? upgradedValue : normalValue;
+    
+    if (normalValue === undefined) {
+      return `${starIcon}${key}`;
+    }
+    
+    if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
+      return `<span style="color: #7cfc00; font-weight: bold;">${starIcon}${displayValue}</span>`;
+    }
+    return `${starIcon}${displayValue}`;
+  });
   let parsed = text
     .replace(/\n/g, '<br/>')
     .replace(/\[gold\](.*?)\[\/gold\]/gi, '<span style="color: #fde047; font-weight: bold;">$1</span>')
     .replace(/\[relic\](.*?)\[\/relic\]/gi, '<span style="color: #fb7185; font-weight: bold;">$1</span>')
     .replace(/\[kw\](.*?)\[\/kw\]/gi, '<span style="color: #ffffff; font-weight: 800; border-bottom: 1px dashed #666;">$1</span>')
-    .replace(/\[energy\]/gi, '⚡️');
+    .replace(/\[energy\]/gi, '⚡️')
+    .replace(/\[star\]/gi, '★');
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter(kw => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter(kw => kw !== "廃棄" && kw !== "Exhaust");
@@ -120,6 +155,33 @@ const CardFrameStroke = ({ type, color }: { type: string, color: string }) => {
   );
 };
 
+const StarCostDiamond = ({ starCost, isXStarCost, size = 'small' }: { starCost?: number, isXStarCost?: boolean | null, size?: 'small' | 'large' }) => {
+  if (!starCost && !isXStarCost) return null;
+  
+  const displayValue = isXStarCost ? 'X' : starCost;
+  const sizeClasses = size === 'small' 
+    ? 'w-2.5 h-2.5 md:w-3 md:h-3 text-[6px] md:text-[7px]'
+    : 'w-3.5 h-3.5 text-[8px]';
+  
+  return (
+    <div 
+      className={`absolute ${sizeClasses} bg-blue-500 border border-white flex items-center justify-center transform rotate-45`}
+      style={{ 
+        top: size === 'small' ? '14px' : '18px', 
+        left: size === 'small' ? '0px' : '0px',
+        zIndex: 40
+      }}
+    >
+      <span 
+        className="font-black text-white transform -rotate-45 block"
+        style={{ fontSize: 'inherit', lineHeight: '1' }}
+      >
+        {displayValue}
+      </span>
+    </div>
+  );
+};
+
 // --- Components ---
 const SortableCard = ({ card, isOverlay = false, onHover, onMove }: { 
   card: SpireCard, isOverlay?: boolean, onHover?: (card: SpireCard | null, e?: any) => void, onMove?: (e: any) => void 
@@ -139,12 +201,15 @@ const SortableCard = ({ card, isOverlay = false, onHover, onMove }: {
       <div className="relative w-full h-full overflow-hidden pointer-events-none flex flex-col">
         <div className="w-full aspect-square relative z-0 bg-[#1a1a24] shrink-0">
           <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" crossOrigin="anonymous" />
-          <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-3.5 h-3.5 md:w-4.5 md:h-4.5 bg-[#000000cc] rounded-full border border-[#ffffff4d] flex items-center justify-center overflow-hidden">
-            <span className="cost-text font-black italic block text-center" 
-                  style={{ color, fontSize: '9px', width: '100%', lineHeight: '1', transform: 'translateY(0.5px)' }}>
-              {card.cost === -1 ? 'X' : card.cost}
-            </span>
-          </div>
+          {!(card.cost === -1 && card.is_x_cost === null && (card.keywords?.includes('プレイ不可') || card.keywords?.includes('Unplayable') || card.type === '状態異常' || card.type_key === 'Status' || card.type === '呪い' || card.type_key === 'Curse')) && (
+            <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-3.5 h-3.5 md:w-4.5 md:h-4.5 bg-[#000000cc] rounded-full border border-[#ffffff4d] flex items-center justify-center overflow-hidden">
+              <span className="cost-text font-black italic block text-center" 
+                    style={{ color, fontSize: '9px', width: '100%', lineHeight: '1', transform: 'translateY(0.5px)' }}>
+                {card.is_x_cost ? 'X' : (card.cost === -1 ? 'X' : card.cost)}
+              </span>
+            </div>
+          )}
+          <StarCostDiamond starCost={card.star_cost} isXStarCost={card.is_x_star_cost} size="small" />
         </div>
         <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible relative">
           <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1', display: 'block', minHeight: '2.4em' }}>
@@ -646,9 +711,12 @@ export default function CardsPage() {
                 <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                   <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d]">
                     <img src={formatImageUrl(card.image_url)} alt="" className="w-full h-full object-contain" />
-                    <div className="cost-badge absolute top-1 left-1 z-30 w-4.5 h-4.5 bg-[#000000cc] border border-[#ffffff4d] rounded-full flex items-center justify-center">
-                        <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '10px' }}>{card.cost === -1 ? 'X' : card.cost}</span>
-                    </div>
+                    {!(card.cost === -1 && card.is_x_cost === null && (card.keywords?.includes('プレイ不可') || card.keywords?.includes('Unplayable') || card.type === '状態異常' || card.type_key === 'Status' || card.type === '呪い' || card.type_key === 'Curse')) && (
+                      <div className="cost-badge absolute top-1 left-1 z-30 w-4.5 h-4.5 bg-[#000000cc] border border-[#ffffff4d] rounded-full flex items-center justify-center">
+                          <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '10px' }}>{card.is_x_cost ? 'X' : (card.cost === -1 ? 'X' : card.cost)}</span>
+                      </div>
+                    )}
+                    <StarCostDiamond starCost={card.star_cost} isXStarCost={card.is_x_star_cost} size="large" />
                   </div>
                   <div className="flex-1 flex items-start justify-center px-1 pt-1.5"><p className="card-name-text text-[7px] font-black text-white text-center uppercase break-words w-full">{card.name}</p></div>
                   <CardFrameStroke type={card.type} color={color} />
@@ -665,7 +733,10 @@ export default function CardsPage() {
           <div className="p-3 bg-[#1e293b] border-b border-[#ffffff1a]">
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black text-[#64748b] uppercase tracking-tighter">NORMAL</span>
-              <span className="text-sm font-black italic text-white">{hoveredCard.cost === -1 ? 'X' : hoveredCard.cost}</span>
+              <div className="flex items-center gap-1">
+                {(hoveredCard.is_x_star_cost || hoveredCard.star_cost) && <span className="text-xs font-black text-blue-400">★{hoveredCard.is_x_star_cost ? 'X' : hoveredCard.star_cost}</span>}
+                <span className="text-sm font-black italic text-white">{hoveredCard.is_x_cost ? 'X' : (hoveredCard.cost === -1 ? 'X' : hoveredCard.cost)}</span>
+              </div>
             </div>
             <h3 className="text-xs font-black text-white mb-2">{hoveredCard.name}</h3>
             <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, false) }} />
@@ -674,9 +745,12 @@ export default function CardsPage() {
             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#7cfc004d] to-transparent"></div>
             <div className="flex justify-between items-center mb-1">
               <span className="text-[8px] font-black text-[#7cfc00] uppercase tracking-tighter">UPGRADED +</span>
-              <span className="text-sm font-black italic" style={{ color: (hoveredCard.upgrade?.cost !== undefined && hoveredCard.upgrade.cost < hoveredCard.cost) ? '#7cfc00' : 'white' }}>
-                {hoveredCard.upgrade?.cost !== undefined ? (hoveredCard.upgrade.cost === -1 ? 'X' : hoveredCard.upgrade.cost) : (hoveredCard.cost === -1 ? 'X' : hoveredCard.cost)}
-              </span>
+              <div className="flex items-center gap-1">
+                {(hoveredCard.upgrade?.is_x_star_cost || hoveredCard.upgrade?.star_cost || hoveredCard.is_x_star_cost || hoveredCard.star_cost) && <span className="text-xs font-black text-blue-400">★{hoveredCard.upgrade?.is_x_star_cost ? 'X' : (hoveredCard.upgrade?.star_cost || hoveredCard.is_x_star_cost ? 'X' : hoveredCard.star_cost)}</span>}
+                <span className="text-sm font-black italic" style={{ color: (hoveredCard.upgrade?.cost !== undefined && hoveredCard.upgrade.cost < hoveredCard.cost) ? '#7cfc00' : 'white' }}>
+                  {(hoveredCard.upgrade?.is_x_cost || hoveredCard.is_x_cost) ? 'X' : (hoveredCard.upgrade?.cost !== undefined ? (hoveredCard.upgrade.cost === -1 ? 'X' : hoveredCard.upgrade.cost) : (hoveredCard.cost === -1 ? 'X' : hoveredCard.cost))}
+                </span>
+              </div>
             </div>
             <h3 className="text-xs font-black text-[#7cfc00] mb-2">{hoveredCard.name}+</h3>
             <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hoveredCard, true) }} />
