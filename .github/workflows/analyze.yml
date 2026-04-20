@@ -2,7 +2,7 @@ name: Scheduled Analysis
 
 on:
   schedule:
-    - cron: '0 0 * * *' # 毎日日本時間の午前9時（UTC 0時）に1回実行
+    - cron: '0 0 * * *' # 毎日日本時間の午前9時（UTC 0時）に実行
   workflow_dispatch:      # 手動実行ボタン
 
 jobs:
@@ -25,10 +25,19 @@ jobs:
       - name: Run crawler
         run: python analysis/crawler.py
 
+      - name: Run analyzer
+        run: python analysis/analyzer.py
+
       - name: Commit and Push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add src/data/full_run_details.json
-          git commit -m "Update latest runs data" || exit 0
+          
+          # 修正ポイント：
+          # 1. 増加した日別JSON（runs_*.json）をすべて追加
+          # 2. 更新された統計データ（tier_stats.json）を追加
+          git add src/data/runs_*.json
+          git add src/data/tier_stats.json
+          
+          git commit -m "Update latest runs data and stats" || exit 0
           git push
