@@ -2,6 +2,35 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 
+const getCostParts = (card: any, isUpgraded: boolean = false): { text: string; isStar: boolean } => {
+  if (!card) return { text: '', isStar: false };
+  const upgraded = isUpgraded ? (card.upgrade || {}) : {};
+  const baseCost = (isUpgraded ? upgraded.cost : card.cost);
+  
+  // is_x_costがtrueの場合はXを表示
+  const isXCost = isUpgraded ? (upgraded.is_x_cost ?? card.is_x_cost) : card.is_x_cost;
+  if (isXCost) {
+    return { text: 'X', isStar: false };
+  }
+  
+  if (baseCost !== undefined && baseCost !== null) {
+    const text = baseCost === -1 ? 'X' : String(baseCost);
+    return { text, isStar: false };
+  }
+
+  const starCandidates = [
+    isUpgraded ? upgraded.star_cost : card.star_cost,
+    isUpgraded ? upgraded.starCost : card.starCost,
+    isUpgraded ? upgraded.star : card.star,
+  ];
+  const starCost = starCandidates.find((v: any) => v !== undefined && v !== null);
+  if (starCost !== undefined) {
+    return { text: String(starCost), isStar: true };
+  }
+
+  return { text: '', isStar: false };
+};
+
 const parseDescription = (card: any, isUpgraded: boolean = false) => {
   if (!card) return "";
   let text = (isUpgraded ? card.upgrade_description : card.description) || card.description || "";
@@ -33,12 +62,41 @@ const parseDescription = (card: any, isUpgraded: boolean = false) => {
     }
     return `${displayValue}${energyIcon}`;
   });
+  text = text.replace(/\[star:(\w+)\]/gi, (match: string, key: string) => {
+    const starIcon = '★';
+    
+    // 数字の場合
+    if (!isNaN(parseInt(key))) {
+      const numValue = parseInt(key);
+      // 0または1の場合は★のみ表示（「★を消費するたび」のような表現のため）
+      if (numValue === 0 || numValue === 1) {
+        return starIcon;
+      }
+      // 2以上の場合は数字を表示（「★2を得る」のような表現のため）
+      return `${starIcon}${key}`;
+    }
+    
+    // 文字列キーの場合はvarsから取得
+    const normalValue = card.vars?.[key] ?? card[key];
+    const upgradedValue = card.upgrade?.[key] ?? normalValue;
+    const displayValue = isUpgraded ? upgradedValue : normalValue;
+    
+    if (normalValue === undefined) {
+      return `${starIcon}${key}`;
+    }
+    
+    if (isUpgraded && normalValue !== undefined && upgradedValue !== normalValue) {
+      return `<span style="color: #7cfc00; font-weight: bold;">${starIcon}${displayValue}</span>`;
+    }
+    return `${starIcon}${displayValue}`;
+  });
   let parsed = text
     .replace(/\n/g, '<br/>')
     .replace(/\[gold\](.*?)\[\/gold\]/gi, '<span style="color: #fde047; font-weight: bold;">$1</span>')
     .replace(/\[relic\](.*?)\[\/relic\]/gi, '<span style="color: #fb7185; font-weight: bold;">$1</span>')
     .replace(/\[kw\](.*?)\[\/kw\]/gi, '<span style="color: #ffffff; font-weight: 800; border-bottom: 1px dashed #666;">$1</span>')
-    .replace(/\[energy\]/gi, '⚡️');
+    .replace(/\[energy\]/gi, '⚡️')
+    .replace(/\[star\]/gi, '★');
   if (card.keywords && card.keywords.length > 0) {
     const exhaustKeywords = card.keywords.filter((kw: string) => kw === "廃棄" || kw === "Exhaust");
     const topKeywords = card.keywords.filter((kw: string) => kw !== "廃棄" && kw !== "Exhaust");
@@ -76,6 +134,33 @@ const CardFrameStroke = ({ type, color }: { type: string | undefined, color: str
       <path d={`M-10,-10 H110 V140 H-10 Z ${path}`} fill="#0d0d12" fillRule="evenodd" />
       <path d={path} fill="none" stroke={color} strokeWidth="3" strokeOpacity="0.8" />
     </svg>
+  );
+};
+
+const StarCostDiamond = ({ starCost, isXStarCost, size = 'small' }: { starCost?: number, isXStarCost?: boolean | null, size?: 'small' | 'large' }) => {
+  if (!starCost && !isXStarCost) return null;
+  
+  const displayValue = isXStarCost ? 'X' : starCost;
+  const sizeClasses = size === 'small' 
+    ? 'w-2.5 h-2.5 md:w-3 md:h-3 text-[6px] md:text-[7px]'
+    : 'w-3.5 h-3.5 text-[8px]';
+  
+  return (
+    <div 
+      className={`absolute ${sizeClasses} bg-blue-500 border border-white flex items-center justify-center transform rotate-45`}
+      style={{ 
+        top: size === 'small' ? '14px' : '18px', 
+        left: size === 'small' ? '0px' : '0px',
+        zIndex: 40 
+      }}
+    >
+      <span 
+        className="font-black text-white transform -rotate-45 block"
+        style={{ fontSize: 'inherit', lineHeight: '1' }}
+      >
+        {displayValue}
+      </span>
+    </div>
   );
 };
 
@@ -415,6 +500,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
           const api = cardInfoMap[card.id];
           const image = api?.image_url || api?.image || '';
           const color = getRarityColor(api?.rarity || '');
+          const costParts = getCostParts(api, false);
           return (
             <div key={card.id} className="group relative flex flex-col transition-transform hover:scale-110 hover:z-50 bg-[#071021] border border-[#0f172a] rounded-sm overflow-hidden" onMouseEnter={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onMouseMove={updatePos} onMouseLeave={() => setHovered(null)} onClick={(e) => { setHovered({ api, stat: card }); updatePos(e); }} onTouchStart={(e: any) => { const t = e.touches?.[0]; touchStartRef.current = t ? { x: t.clientX, y: t.clientY } : null; touchMovedRef.current = false; }} onTouchMove={(e: any) => { touchMovedRef.current = true; /* keep updating pos so tooltip won't snap */ const t = e.touches?.[0]; if (t) updatePos(t); }} onTouchEnd={(e: any) => {
                 const moved = touchMovedRef.current || isTouchScrollingRef.current;
@@ -433,8 +519,9 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d] flex items-center justify-center">
                   <img src={formatImageUrl(image)} alt={api?.name || card.id} className="w-full h-full object-contain" />
                   <div className="cost-badge absolute top-1 left-1 z-30 w-4.5 h-4.5 bg-[#000000cc] border border-[#ffffff4d] rounded-full flex items-center justify-center">
-                    <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '9px' }}>{api?.cost === -1 ? 'X' : (api?.cost ?? '?')}</span>
+                    <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '9px' }}>{costParts.isStar ? `★${costParts.text}` : costParts.text}</span>
                   </div>
+                  <StarCostDiamond starCost={api?.star_cost} isXStarCost={api?.is_x_star_cost} size="large" />
                 </div>
                 <div className="flex-1 flex items-start justify-center px-1 pt-1.5">
                   <p className="card-name-text text-[7px] font-black text-white text-center uppercase break-words w-full">{api?.name || card.id.replace('CARD.', '')}</p>
@@ -463,6 +550,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       {hovered && hovered.api && (() => {
               // compute tooltip style: on narrow screens place top center
               const tooltipWidth = 320;
+              const tooltipHeight = tooltipRef.current?.offsetHeight || 300;
               const isNarrow = typeof window !== 'undefined' && window.innerWidth < 640;
               let style: any = {};
               if (isNarrow) {
@@ -471,20 +559,39 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 style.position = 'fixed';
                 style.width = `${Math.min(tooltipWidth, window.innerWidth - 16)}px`;
               } else {
-                style.left = mousePos.x;
-                style.top = mousePos.y;
+                let x = mousePos.x + 15;
+                if (x + tooltipWidth > window.innerWidth) x = mousePos.x - tooltipWidth - 15;
+                let y = mousePos.y - (tooltipHeight / 2);
+                if (y + tooltipHeight > window.innerHeight) y = window.innerHeight - tooltipHeight - 10;
+                if (y < 10) y = 10;
+                style.left = x;
+                style.top = y;
                 style.position = 'fixed';
                 style.width = `${tooltipWidth}px`;
               }
               return (
                 <div ref={tooltipRef} className="fixed z-[9999] p-3 rounded-sm bg-[#020617] border border-[#1e293b] text-sm text-slate-200 shadow-2xl" style={style}>
-                  <div className="text-xs text-slate-400 mb-1 uppercase">{hovered.api.name}</div>
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="text-xs text-slate-400 uppercase">{hovered.api.name}</div>
+                    <div className="flex items-center gap-1">
+                      {(hovered.api.is_x_star_cost || hovered.api.star_cost) && <span className="text-xs font-black text-blue-400">★{hovered.api.is_x_star_cost ? 'X' : hovered.api.star_cost}</span>}
+                      <span className="text-sm font-black italic text-white">{hovered.api.is_x_cost ? 'X' : (hovered.api.cost === -1 ? 'X' : hovered.api.cost)}</span>
+                    </div>
+                  </div>
                   <div className="p-2 bg-[#07121a] rounded-sm mb-2">
                     <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hovered.api, false) }} />
                   </div>
                   {hovered.api.upgrade && (
                     <div className="p-2 bg-[#020617] rounded-sm border-t border-[#0f172a]">
-                      <div className="text-[10px] text-[#7cfc00] font-black mb-1">UPGRADED +</div>
+                      <div className="flex justify-between items-center mb-1">
+                        <div className="text-[10px] text-[#7cfc00] font-black">UPGRADED +</div>
+                        <div className="flex items-center gap-1">
+                          {(hovered.api.upgrade?.is_x_star_cost || hovered.api.upgrade?.star_cost || hovered.api.is_x_star_cost || hovered.api.star_cost) && <span className="text-xs font-black text-blue-400">★{hovered.api.upgrade?.is_x_star_cost ? 'X' : (hovered.api.upgrade?.star_cost || hovered.api.is_x_star_cost ? 'X' : hovered.api.star_cost)}</span>}
+                          <span className="text-sm font-black italic" style={{ color: (hovered.api.upgrade?.cost !== undefined && hovered.api.upgrade.cost < hovered.api.cost) ? '#7cfc00' : 'white' }}>
+                            {(hovered.api.upgrade?.is_x_cost || hovered.api.is_x_cost) ? 'X' : (hovered.api.upgrade?.cost !== undefined ? (hovered.api.upgrade.cost === -1 ? 'X' : hovered.api.upgrade.cost) : (hovered.api.cost === -1 ? 'X' : hovered.api.cost))}
+                          </span>
+                        </div>
+                      </div>
                       <div className="text-[11px] text-[#cbd5e1] leading-relaxed spire-desc" dangerouslySetInnerHTML={{ __html: parseDescription(hovered.api, true) }} />
                     </div>
                   )}
