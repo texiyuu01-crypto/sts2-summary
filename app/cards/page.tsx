@@ -354,37 +354,16 @@ export default function CardsPage() {
     TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
     const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    if (typeof window === 'undefined') return '';
     return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
 
-  const shareX = async () => {
+  const twitterShareUrl = useMemo(() => {
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
-    
-    // Xアプリへの遷移を確実にするため、一旦「短縮なし」のテキストを作る
-    const baseText = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n`;
-    const tags = `\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
-
-    // スマホ判定（簡易的）
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // 【重要】スマホの場合は await せずに即座に location.href を実行
-      const text = encodeURIComponent(`${baseText}${longUrl}${tags}`);
-      location.href = `https://twitter.com/intent/tweet?text=${text}`;
-    } else {
-      // PCの場合は今まで通り短縮を試みる
-      let shortUrl = longUrl;
-      try {
-        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-        if (response.ok) shortUrl = await response.text();
-      } catch (e) {
-        console.warn('URL短縮失敗', e);
-      }
-      const text = encodeURIComponent(`${baseText}${shortUrl}${tags}`);
-      window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
-    }
-  };
+    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${longUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  }, [activeTab, tierData, generateShareURL]);
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
@@ -688,7 +667,7 @@ export default function CardsPage() {
               </button>
               <div className="flex gap-2">
                 <button onClick={(e) => { e.stopPropagation(); generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
-                <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
+                <a href={twitterShareUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0] cursor-pointer">Share on X</a>
                 <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
               </div>
             </div>
