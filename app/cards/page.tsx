@@ -368,179 +368,12 @@ export default function CardsPage() {
     return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(longUrl)}&hashtags=${encodeURIComponent(hashtagList)}`;
   }, [activeTab, tierData, generateShareURL]);
 
-  const getShortUrl = async (longUrl: string): Promise<string> => {
-    try {
-      const res = await fetch(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`);
-      const data = await res.json();
-      if (data.shorturl) {
-        return data.shorturl;
-      }
-    } catch (err) {
-      console.warn('URL短縮失敗', err);
-    }
-    return longUrl;
-  };
-
-  const generateTierImage = async (): Promise<HTMLCanvasElement | null> => {
-    if (!tierRef.current) return null;
-    const wasCompact = isCompact;
-    setIsCompact(false);
-
-    const DPR = Math.max(1, window.devicePixelRatio || 1);
-    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
-    try { await Promise.race([(document as any).fonts.ready, wait(150)]); } catch (e) {}
-    const imgs = Array.from(tierRef.current.querySelectorAll('img')) as HTMLImageElement[];
-    const imgLoadWithTimeout = (img: HTMLImageElement, timeout = 300) => new Promise(r => {
-      if (img.complete) return r(null);
-      let done = false;
-      const fin = () => { if (done) return; done = true; r(null); };
-      img.onload = fin; img.onerror = fin;
-      setTimeout(fin, timeout);
-    });
-    const imgPromises = imgs.map(img => imgLoadWithTimeout(img, 300));
-    await Promise.all(imgPromises);
-
-    const clone = tierRef.current.cloneNode(true) as HTMLElement;
-    clone.style.width = '1024px';
-    clone.style.transform = 'none';
-    clone.style.position = 'fixed';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.zIndex = '99999';
-    document.body.appendChild(clone);
-
-    const originalAllLoaded = imgs.every(i => i.complete);
-    if (!originalAllLoaded) {
-      const cImgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
-      const cPromises = cImgs.map(img => imgLoadWithTimeout(img, isMobile ? 500 : 300));
-      await Promise.all(cPromises);
-    }
-
-    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    const extraWait = isMobile ? 450 : 150;
-    await new Promise(resolve => setTimeout(resolve, extraWait));
-
-    clone.querySelectorAll('*').forEach((el: any) => {
-      try {
-        const cs = getComputedStyle(el);
-        if (!cs) return;
-        if (cs.borderStyle && cs.borderStyle !== 'none') {
-          el.style.borderLeftWidth = cs.borderLeftWidth;
-          el.style.borderRightWidth = cs.borderRightWidth;
-          el.style.borderTopWidth = cs.borderTopWidth;
-          el.style.borderBottomWidth = cs.borderBottomWidth;
-          el.style.borderStyle = cs.borderStyle;
-          el.style.borderColor = cs.borderColor;
-          el.style.boxSizing = 'border-box';
-        }
-        const skipTransform = el.classList && (el.classList.contains('cost-text') || el.classList.contains('cost-badge'));
-        if (!skipTransform && cs.transform && cs.transform !== 'none') el.style.transform = 'none';
-        el.style.padding = cs.padding;
-        el.style.margin = cs.margin;
-      } catch (e) {}
-    });
-
-    clone.querySelectorAll('img').forEach((img: any) => {
-      try {
-        const r = img.getBoundingClientRect();
-        if (r.width && r.height) {
-          img.style.width = `${Math.round(r.width)}px`;
-          img.style.height = `${Math.round(r.height)}px`;
-          img.style.maxWidth = 'none';
-        }
-      } catch (e) {}
-    });
-
-    clone.querySelectorAll('svg').forEach((svg: any) => {
-      try {
-        const rect = svg.getBoundingClientRect();
-        const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
-        if (vb && rect.width && vb.width) {
-          const scale = rect.width / vb.width;
-          svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
-            const orig = parseFloat(p.getAttribute('stroke-width') || '1');
-            p.setAttribute('stroke-width', String(Math.max(1, orig * scale)));
-            p.setAttribute('vector-effect', 'non-scaling-stroke');
-          });
-        } else {
-          svg.querySelectorAll('[stroke-width]').forEach((p: any) => p.setAttribute('vector-effect', 'non-scaling-stroke'));
-        }
-        if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
-        if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
-      } catch (e) {}
-    });
-
-    clone.querySelectorAll('.cost-badge').forEach((badge: any) => {
-      try {
-        const r = badge.getBoundingClientRect();
-        if (r.width && r.height) {
-          badge.style.width = `${Math.round(r.width)}px`;
-          badge.style.height = `${Math.round(r.height)}px`;
-          badge.style.display = 'flex';
-          badge.style.alignItems = 'center';
-          badge.style.justifyContent = 'center';
-        }
-        const span = badge.querySelector('.cost-text');
-        if (span) {
-          try {
-            const cs = getComputedStyle(span);
-            span.style.transform = cs.transform || '';
-          } catch (e) {
-            span.style.transform = '';
-          }
-          span.style.display = 'block';
-          if (r.height) span.style.lineHeight = `${Math.round(r.height)}px`;
-          span.style.padding = '0';
-        }
-      } catch (e) {}
-    });
-
-    const cloneCostEls = Array.from(clone.querySelectorAll('.cost-text')) as HTMLElement[];
-    const clonePrev = cloneCostEls.map(el => el.style.transform || '');
-    try {
-      cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-30%)`; } catch (e) {} });
-
-      const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
-
-      clonePrev.forEach((val, i) => { try { if (cloneCostEls[i]) cloneCostEls[i].style.transform = val; } catch (e) {} });
-      document.body.removeChild(clone);
-      setIsCompact(wasCompact);
-
-      return canvas;
-    } catch (e) {
-      clonePrev.forEach((val, i) => { try { if (cloneCostEls[i]) cloneCostEls[i].style.transform = val; } catch (e) {} });
-      try { if (document.body.contains(clone)) document.body.removeChild(clone); } catch (e) {}
-      setIsCompact(wasCompact);
-      return null;
-    }
-  };
-
   const shareX = async () => {
     const currentChar = characters.find(c => c.id === activeTab)?.name || "";
     const charText = currentChar ? `【${currentChar}】` : "";
     const textBody = `Slay the Spire 2 ${charText} Tier List を作成しました！`;
     const hashtags = "#スレスパ2 #STS2 #Tier表 #SlayTheSpire2";
     const longUrl = generateShareURL();
-
-    // 画像を生成してクリップボードにコピー
-    const canvas = await generateTierImage();
-    if (canvas) {
-      try {
-        const blob = await new Promise<Blob | null>((resolve) => {
-          canvas.toBlob((blob) => resolve(blob), 'image/png');
-        });
-        if (blob && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
-          const item = new ClipboardItem({ "image/png": blob });
-          await navigator.clipboard.write([item]);
-          alert('画像をクリップボードにコピーしました！Xの投稿画面でペーストしてください。');
-        }
-      } catch (err) {
-        console.warn('画像コピー失敗', err);
-      }
-    }
-
-    // URLを短縮
-    const shortUrl = await getShortUrl(longUrl);
 
     // モバイル判定
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -550,8 +383,8 @@ export default function CardsPage() {
       try {
         await navigator.share({
           title: 'StS2 Tier List',
-          text: `${textBody}\n${hashtags}\n(画像をペーストしてシェアしてね！)`,
-          url: shortUrl,
+          text: `${textBody}\n${hashtags}`,
+          url: longUrl,
         });
         return;
       } catch (err) {
@@ -561,7 +394,7 @@ export default function CardsPage() {
     }
 
     // PC またはフォールバック: Intent URL を直接開く
-    const fullText = `${textBody}\n${shortUrl}\n${hashtags}`;
+    const fullText = `${textBody}\n${longUrl}\n${hashtags}`;
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`;
     window.open(shareUrl, '_blank', 'noreferrer');
   };
