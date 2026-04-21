@@ -333,7 +333,7 @@ export default function CardsPage() {
 
   const applyHashToData = useCallback((hash: string, cardsPool: SpireCard[]) => {
     try {
-      const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
+      const decoded = atob(hash.replace(/-/g, '+').replace(/_/g, '/'));
       const compactData = JSON.parse(decoded);
       const newTierData: Record<string, SpireCard[]> = { pool: [], S: [], A: [], B: [], C: [], D: [] };
       const assignedIds = new Set<string>();
@@ -353,7 +353,7 @@ export default function CardsPage() {
     const compactData: any = { tab: activeTab, tiers: {} };
     TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
-    const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const hash = btoa(jsonString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     if (typeof window === 'undefined') return '';
     return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
@@ -377,7 +377,7 @@ export default function CardsPage() {
       const hash = urlParams.get('t');
       if (hash) {
         try {
-          const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
+          const decoded = atob(hash.replace(/-/g, '+').replace(/_/g, '/'));
           const compactData = JSON.parse(decoded);
           if (compactData.tab) setActiveTab(compactData.tab);
           setIsTierMode(true);
