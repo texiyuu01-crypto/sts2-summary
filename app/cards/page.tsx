@@ -666,7 +666,7 @@ export default function CardsPage() {
                 {isCompact ? 'EXPAND' : 'COLLAPSE'}
               </button>
               <div className="flex gap-2">
-                <button onClick={(e) => { e.stopPropagation(); generateShareURL(); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+                <button onClick={(e) => { e.stopPropagation(); const url = generateShareURL(); navigator.clipboard.writeText(url); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
                 <a href={twitterShareUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0] cursor-pointer">Share on X</a>
                 <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
               </div>
