@@ -358,20 +358,31 @@ export default function CardsPage() {
   }, [tierData, activeTab]);
 
   const shareX = async () => {
+    // 1. 先に「空のウィンドウ」を開いておく（ユーザーアクションとして認識させる）
+    const newWindow = window.open('', '_blank');
+
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
     let shortUrl = longUrl;
+
     try {
-      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-      if (response.ok) {
-        shortUrl = await response.text();
-      }
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (response.ok) shortUrl = await response.text();
     } catch (e) {
-      console.warn('URL短縮失敗、元のURLを使用します', e);
+        console.warn('URL短縮失敗', e);
     }
-    const text = encodeURIComponent(`Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${shortUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`);
-    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
-  };
+
+    const tweetText = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${shortUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
+    const finalUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+
+    // 2. 準備ができたら、開いておいたウィンドウのURLを書き換える
+    if (newWindow) {
+        newWindow.location.href = finalUrl;
+    } else {
+        // ポップアップブロックなどで開けなかった場合のフォールバック
+        location.href = finalUrl;
+    }
+};
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
