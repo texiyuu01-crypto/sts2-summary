@@ -12,6 +12,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import html2canvas from 'html2canvas';
+import LZString from 'lz-string';
 
 // --- Types & Constants ---
 interface SpireCard {
@@ -333,7 +334,8 @@ export default function CardsPage() {
 
   const applyHashToData = useCallback((hash: string, cardsPool: SpireCard[]) => {
     try {
-      const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
+      const decoded = LZString.decompressFromEncodedURIComponent(hash);
+      if (!decoded) throw new Error('Decompression failed');
       const compactData = JSON.parse(decoded);
       const newTierData: Record<string, SpireCard[]> = { pool: [], S: [], A: [], B: [], C: [], D: [] };
       const assignedIds = new Set<string>();
@@ -353,7 +355,7 @@ export default function CardsPage() {
     const compactData: any = { tab: activeTab, tiers: {} };
     TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
-    const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const hash = LZString.compressToEncodedURIComponent(jsonString);
     return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
 
@@ -398,7 +400,8 @@ export default function CardsPage() {
       const hash = urlParams.get('t');
       if (hash) {
         try {
-          const decoded = decodeURIComponent(escape(atob(hash.replace(/-/g, '+').replace(/_/g, '/'))));
+          const decoded = LZString.decompressFromEncodedURIComponent(hash);
+          if (!decoded) throw new Error('Decompression failed');
           const compactData = JSON.parse(decoded);
           if (compactData.tab) setActiveTab(compactData.tab);
           setIsTierMode(true);
