@@ -355,15 +355,14 @@ export default function CardsPage() {
     const jsonString = JSON.stringify(compactData);
     const hash = btoa(jsonString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     if (typeof window === 'undefined') return '';
-    return `${window.location.origin}${window.location.pathname}?t=${hash}`;
+    return `${window.location.origin}${window.location.pathname}#t=${hash}`;
   }, [tierData, activeTab]);
 
   const twitterShareUrl = useMemo(() => {
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
-    const encodedLongUrl = encodeURIComponent(longUrl);
-    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${encodedLongUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${longUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
+    return `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
   }, [activeTab, tierData, generateShareURL]);
 
   useEffect(() => {
@@ -375,10 +374,13 @@ export default function CardsPage() {
       });
       setCharacters(sorted);
       const urlParams = new URLSearchParams(window.location.search);
-      const hash = urlParams.get('t');
-      if (hash) {
+      let t = urlParams.get('t');
+      if (!t && window.location.hash.startsWith('#t=')) {
+        t = window.location.hash.substring(3);
+      }
+      if (t) {
         try {
-          const decoded = atob(hash.replace(/-/g, '+').replace(/_/g, '/'));
+          const decoded = atob(t.replace(/-/g, '+').replace(/_/g, '/'));
           const compactData = JSON.parse(decoded);
           if (compactData.tab) setActiveTab(compactData.tab);
           setIsTierMode(true);
@@ -400,8 +402,11 @@ export default function CardsPage() {
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
       setAllCards(data);
       const urlParams = new URLSearchParams(window.location.search);
-      const hash = urlParams.get('t');
-      if (hash) applyHashToData(hash, data);
+      let t = urlParams.get('t');
+      if (!t && window.location.hash.startsWith('#t=')) {
+        t = window.location.hash.substring(3);
+      }
+      if (t) applyHashToData(t, data);
       else setTierData({ pool: data, S: [], A: [], B: [], C: [], D: [] });
       setLoading(false);
     });
