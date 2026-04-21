@@ -362,9 +362,12 @@ export default function CardsPage() {
     if (typeof window === 'undefined') return "";
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
-    const textBody = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！`;
-    const hashtags = `#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(textBody + "\n" + hashtags)}&url=${encodeURIComponent(longUrl)}`;
+    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！`;
+    const hashtags = "スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2";
+    const encodedText = encodeURIComponent(text);
+    const encodedUrl = encodeURIComponent(longUrl);
+    const encodedHashtags = encodeURIComponent(hashtags);
+    return `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}&hashtags=${encodedHashtags}`;
   }, [activeTab, tierData, generateShareURL]);
 
   useEffect(() => {
