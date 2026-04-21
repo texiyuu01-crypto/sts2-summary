@@ -254,6 +254,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const [includeColorless, setIncludeColorless] = useState(false);
   const [includeOtherChar, setIncludeOtherChar] = useState(false);
   const [ascOpen, setAscOpen] = useState(false);
+  const [wrMode, setWrMode] = useState<'picked'|'final'>('picked');
 
   useEffect(() => {
     setActiveChar((prev) => {
@@ -377,15 +378,24 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     // get merged cards source using resolveCardsSource (supports multiple ascension selection)
     const cardsSource = resolveCardsSource();
     const pickCountsFrom = (st: any) => {
-      if (runType === 'single') {
-        const picked = st.picked_single ?? st.picked ?? 0;
-        const wins = st.wins_single ?? st.wins ?? 0;
-        const appeared = st.appeared_single ?? st.appeared ?? 0;
-        return { picked, wins, appeared };
+      // New metrics: picked_single/picked_single_wins/picked_multi/picked_multi_wins
+      if (wrMode === 'picked') {
+        if (runType === 'single') {
+          const picked = st.picked_single ?? st.picked_count ?? 0;
+          const wins = st.picked_single_wins ?? st.picked_wins ?? 0;
+          const appeared = st.appeared_single ?? st.appeared ?? 0;
+          return { picked, wins, appeared };
+        } else {
+          const picked = st.picked_multi ?? st.picked_count ?? 0;
+          const wins = st.picked_multi_wins ?? st.picked_wins ?? 0;
+          const appeared = st.appeared_multi ?? st.appeared ?? 0;
+          return { picked, wins, appeared };
+        }
       } else {
-        const picked = st.picked_multi ?? st.picked ?? 0;
-        const wins = st.wins_multi ?? st.wins ?? 0;
-        const appeared = st.appeared_multi ?? st.appeared ?? 0;
+        // Final mode doesn't have single/multi split in current implementation
+        const picked = st.final_count ?? 0;
+        const wins = st.final_wins ?? 0;
+        const appeared = st.appeared ?? 0;
         return { picked, wins, appeared };
       }
     };
@@ -455,6 +465,11 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
           <label className="text-[9px] flex items-center gap-1"><input type="checkbox" checked={includeOtherChar} onChange={(e) => setIncludeOtherChar(e.target.checked)} /> 他キャラカードを含める</label>
         </div>
         <div className="flex items-center gap-3">
+          <label className="text-[9px] font-bold">勝率基準:</label>
+          <label className="text-[9px] flex items-center gap-1"><input type="radio" name="wrMode" checked={wrMode==='picked'} onChange={() => setWrMode('picked')} /> Pick勝率</label>
+          <label className="text-[9px] flex items-center gap-1"><input type="radio" name="wrMode" checked={wrMode==='final'} onChange={() => setWrMode('final')} /> Final勝率</label>
+        </div>
+        <div className="flex items-center gap-3">
           <label className="text-[9px] font-bold">バージョン:</label>
           <select value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} className="text-[9px] bg-[#071021] border border-[#ffffff1a] px-2 py-1 rounded-sm">
             {versions.map(v => (<option key={v} value={v}>{v === 'ALL' ? '全て' : v}</option>))}
@@ -493,6 +508,25 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
             )}
           </div>
         </div>
+      </div>
+
+      <div className="flex justify-between items-center mb-4">
+        <p className="text-[10px] text-slate-500">
+          ※ 累計で3回以上ピックされたカードのみ表示しています。Pick勝率はピックしたランでの勝率、Final勝率は最終デッキに含まれていたランでの勝率です。
+        </p>
+        <p className="text-[10px] text-slate-400">
+          対象ラン数: {(() => {
+            const summarySource = (selectedVersion === 'ALL' && selectedAscension === 'ALL') ? statsData.summary :
+                              (selectedVersion !== 'ALL' && selectedAscension === 'ALL') ? (statsData.by_version?.summary?.[selectedVersion] || {}) :
+                              (selectedVersion === 'ALL' && selectedAscension !== 'ALL') ? (statsData.by_ascension?.summary?.[selectedAscension as any] || {}) :
+                              (statsData.by_version_ascension?.summary?.[selectedVersion]?.[selectedAscension as any] || {});
+            if (activeChar === 'ALL') {
+              return Object.values(summarySource).reduce((sum: number, char: any) => sum + (runType === 'single' ? char.total_runs_single : char.total_runs_multi), 0);
+            }
+            const charData = summarySource[activeChar];
+            return charData ? (runType === 'single' ? charData.total_runs_single : charData.total_runs_multi) : 0;
+          })()}
+        </p>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
@@ -538,7 +572,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                   <div className="h-full bg-gradient-to-r from-blue-600 to-green-400 transition-all duration-1000" style={{ width: `${card.wr}%` }} />
                 </div>
                 <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase">
-                  <span>Pick: {card.picked}</span>
+                  <span>{wrMode === 'picked' ? 'Pick' : 'Final'}: {card.picked}</span>
                   <span>Win: {card.wins}</span>
                 </div>
               </div>
