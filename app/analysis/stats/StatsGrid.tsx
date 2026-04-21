@@ -169,11 +169,12 @@ const CHARACTER_ORDER = ["ironclad", "silent", "regent", "necrobinder", "defect"
 export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, cardInfoMap: Record<string, any> }) {
   const [versions, setVersions] = useState<string[]>([]);
   const [ascensions, setAscensions] = useState<string[]>([]);
-  const [selectedVersion, setSelectedVersion] = useState<string>('ALL');
+  // allow multiple version selections: 'ALL' or string[] of choices
+  const [selectedVersion, setSelectedVersion] = useState<string[] | 'ALL'>('ALL');
   // allow multiple ascension selections: 'ALL' or string[] of choices
   const [selectedAscension, setSelectedAscension] = useState<string[] | 'ALL'>('ALL');
 
-  const resolveCardsSource = (version?: string, asc?: string) => {
+  const resolveCardsSource = (version?: string[] | 'ALL', asc?: string[] | 'ALL') => {
     const v = version ?? selectedVersion;
     const a = asc ?? selectedAscension;
     // helper to merge multiple group objects (char->card->stats)
@@ -207,27 +208,41 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       return mergeGroups(groups);
     };
 
-    if (v !== 'ALL' && a === 'ALL') return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v]) || {};
+    // if version is array (multiple) merge corresponding version groups
+    const resolveVerGroup = (verSel: string[] | 'ALL') => {
+      if (verSel === 'ALL') return null;
+      const arr = Array.isArray(verSel) ? verSel : [verSel];
+      const groups = arr.map(x => (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[x]) || {});
+      return mergeGroups(groups);
+    };
+
+    if (v !== 'ALL' && a === 'ALL') {
+      const verGroup = resolveVerGroup(v);
+      return verGroup || (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || {};
+    }
 
     if (v === 'ALL' && a !== 'ALL') {
-      const ascGroup = resolveAscGroup(a as any);
+      const ascGroup = resolveAscGroup(a);
       return ascGroup || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
     }
 
-    // both specified: if asc is array merge from by_version_ascension if available per asc, otherwise fallback
+    // both specified: merge from by_version_ascension if available, otherwise fallback
     if (v !== 'ALL' && a !== 'ALL') {
-      if (Array.isArray(a)) {
-        const groups = a.map(x => (statsData.by_version_ascension && statsData.by_version_ascension.cards && statsData.by_version_ascension.cards[v] && statsData.by_version_ascension.cards[v][x]) || {});
-        const merged = mergeGroups(groups);
-        if (Object.keys(merged).length > 0) return merged;
-      } else {
-        if (statsData.by_version_ascension && statsData.by_version_ascension.cards && statsData.by_version_ascension.cards[v] && statsData.by_version_ascension.cards[v][a]) {
-          return statsData.by_version_ascension.cards[v][a];
-        }
-      }
+      const vArr = Array.isArray(v) ? v : [v];
+      const aArr = Array.isArray(a) ? a : [a];
+      const groups: any[] = [];
+      vArr.forEach(ver => {
+        aArr.forEach(asc => {
+          if (statsData.by_version_ascension && statsData.by_version_ascension.cards && statsData.by_version_ascension.cards[ver] && statsData.by_version_ascension.cards[ver][asc]) {
+            groups.push(statsData.by_version_ascension.cards[ver][asc]);
+          }
+        });
+      });
+      const merged = mergeGroups(groups);
+      if (Object.keys(merged).length > 0) return merged;
     }
 
-    return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v]) || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+    return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
   };
 
   const rawChars = Object.keys(resolveCardsSource());
@@ -253,6 +268,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const [runType, setRunType] = useState<'single'|'multi'>('single');
   const [includeColorless, setIncludeColorless] = useState(false);
   const [includeOtherChar, setIncludeOtherChar] = useState(false);
+  const [verOpen, setVerOpen] = useState(false);
   const [ascOpen, setAscOpen] = useState(false);
   const [wrMode, setWrMode] = useState<'picked'|'final'>('picked');
 
@@ -353,10 +369,30 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     });
     setVersions(['ALL', ...sortedV]);
     setAscensions(['ALL', ...sortedA]);
-    // defaults: ALL & A10 if present
-    setSelectedVersion('ALL');
     // default ascension: ALL
     setSelectedAscension('ALL');
+
+    // default version: select versions with matching second number (e.g., 0.103.2, 0.103.1, 0.103.0)
+    if (sortedV.length > 0) {
+      const latestVersion = sortedV[0];
+      const parts = latestVersion.replace(/^v/i, '').split('.');
+      if (parts.length >= 2) {
+        const targetPrefix = parts.slice(0, 2).join('.');
+        const matchingVersions = sortedV.filter(v => {
+          const vParts = v.replace(/^v/i, '').split('.');
+          return vParts.length >= 2 && vParts.slice(0, 2).join('.') === targetPrefix;
+        });
+        if (matchingVersions.length > 0) {
+          setSelectedVersion(matchingVersions);
+        } else {
+          setSelectedVersion('ALL');
+        }
+      } else {
+        setSelectedVersion('ALL');
+      }
+    } else {
+      setSelectedVersion('ALL');
+    }
   }, [statsData]);
 
   const updatePos = (e: any) => {
@@ -471,9 +507,38 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         </div>
         <div className="flex items-center gap-3">
           <label className="text-[9px] font-bold">バージョン:</label>
-          <select value={selectedVersion} onChange={(e) => setSelectedVersion(e.target.value)} className="text-[9px] bg-[#071021] border border-[#ffffff1a] px-2 py-1 rounded-sm">
-            {versions.map(v => (<option key={v} value={v}>{v === 'ALL' ? '全て' : v}</option>))}
-          </select>
+          <div className="relative">
+            <button onClick={() => setVerOpen(s => !s)} className="text-[9px] bg-[#071021] border border-[#ffffff1a] px-2 py-1 rounded-sm flex items-center gap-2">
+              <span>{
+                selectedVersion === 'ALL' ? 'すべて' : (Array.isArray(selectedVersion) ? selectedVersion.join(', ') : String(selectedVersion))
+              }</span>
+              <span className="text-xs">▾</span>
+            </button>
+            {verOpen && (
+              <div className="absolute z-40 mt-1 right-0 w-40 max-h-48 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
+                <label className="flex items-center gap-2 mb-1"><input type="checkbox" checked={selectedVersion === 'ALL'} onChange={(e) => { if (e.target.checked) setSelectedVersion('ALL'); else setSelectedVersion([]); }} /> 全て</label>
+                {versions.filter(v => v !== 'ALL').map(v => {
+                  const checked = selectedVersion === 'ALL' ? false : (Array.isArray(selectedVersion) ? selectedVersion.includes(v) : false);
+                  return (
+                    <label key={v} className="flex items-center gap-2 mb-1"><input type="checkbox" checked={checked} onChange={(e) => {
+                      if (e.target.checked) {
+                        const prev = selectedVersion === 'ALL' ? [] : (Array.isArray(selectedVersion) ? selectedVersion.slice() : []);
+                        if (!prev.includes(v)) prev.push(v);
+                        setSelectedVersion(prev);
+                      } else {
+                        const prev = Array.isArray(selectedVersion) ? selectedVersion.filter(x => x !== v) : [];
+                        setSelectedVersion(prev);
+                      }
+                    }} /> {v}</label>
+                  );
+                })}
+                <div className="mt-2 flex justify-between">
+                  <button className="text-[9px] px-2 py-1 bg-[#0b1320] rounded-sm" onClick={() => { setSelectedVersion('ALL'); setVerOpen(false); }}>適用（全て）</button>
+                  <button className="text-[9px] px-2 py-1 bg-[#0b1320] rounded-sm" onClick={() => { setVerOpen(false); }}>閉じる</button>
+                </div>
+              </div>
+            )}
+          </div>
           <label className="text-[9px] font-bold">アセンション:</label>
           <div className="relative">
             <button onClick={() => setAscOpen(s => !s)} className="text-[9px] bg-[#071021] border border-[#ffffff1a] px-2 py-1 rounded-sm flex items-center gap-2">
@@ -516,10 +581,51 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         </p>
         <p className="text-[10px] text-slate-400">
           対象ラン数: {(() => {
-            const summarySource = (selectedVersion === 'ALL' && selectedAscension === 'ALL') ? statsData.summary :
-                              (selectedVersion !== 'ALL' && selectedAscension === 'ALL') ? (statsData.by_version?.summary?.[selectedVersion] || {}) :
-                              (selectedVersion === 'ALL' && selectedAscension !== 'ALL') ? (statsData.by_ascension?.summary?.[selectedAscension as any] || {}) :
-                              (statsData.by_version_ascension?.summary?.[selectedVersion]?.[selectedAscension as any] || {});
+            const mergeSummary = (sources: any[]) => {
+              const merged: Record<string, any> = {};
+              sources.forEach(src => {
+                if (!src) return;
+                Object.entries(src).forEach(([char, data]: any) => {
+                  if (!merged[char]) merged[char] = { total_runs_single: 0, total_runs_multi: 0 };
+                  merged[char].total_runs_single += data.total_runs_single || 0;
+                  merged[char].total_runs_multi += data.total_runs_multi || 0;
+                });
+              });
+              return merged;
+            };
+
+            let summarySource: any;
+            if (selectedVersion === 'ALL' && selectedAscension === 'ALL') {
+              summarySource = statsData.summary;
+            } else if (selectedVersion !== 'ALL' && selectedAscension === 'ALL') {
+              if (Array.isArray(selectedVersion)) {
+                const sources = selectedVersion.map(v => statsData.by_version?.summary?.[v] || {});
+                summarySource = mergeSummary(sources);
+              } else {
+                summarySource = statsData.by_version?.summary?.[selectedVersion as any] || {};
+              }
+            } else if (selectedVersion === 'ALL' && selectedAscension !== 'ALL') {
+              if (Array.isArray(selectedAscension)) {
+                const sources = selectedAscension.map(a => statsData.by_ascension?.summary?.[a] || {});
+                summarySource = mergeSummary(sources);
+              } else {
+                summarySource = statsData.by_ascension?.summary?.[selectedAscension as any] || {};
+              }
+            } else {
+              // both specified
+              const vArr = Array.isArray(selectedVersion) ? selectedVersion : [selectedVersion];
+              const aArr = Array.isArray(selectedAscension) ? selectedAscension : [selectedAscension];
+              const sources: any[] = [];
+              vArr.forEach(ver => {
+                aArr.forEach(asc => {
+                  if (statsData.by_version_ascension?.summary?.[ver]?.[asc]) {
+                    sources.push(statsData.by_version_ascension.summary[ver][asc]);
+                  }
+                });
+              });
+              summarySource = mergeSummary(sources);
+            }
+
             if (activeChar === 'ALL') {
               return Object.values(summarySource).reduce((sum: number, char: any) => sum + (runType === 'single' ? char.total_runs_single : char.total_runs_multi), 0);
             }
