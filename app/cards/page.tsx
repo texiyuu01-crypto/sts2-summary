@@ -368,6 +368,37 @@ export default function CardsPage() {
     return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(longUrl)}&hashtags=${encodeURIComponent(hashtagList)}`;
   }, [activeTab, tierData, generateShareURL]);
 
+  const shareX = async () => {
+    const currentChar = characters.find(c => c.id === activeTab)?.name || "";
+    const charText = currentChar ? `【${currentChar}】` : "";
+    const textBody = `Slay the Spire 2 ${charText} Tier List を作成しました！`;
+    const hashtags = "#スレスパ2 #STS2 #Tier表 #SlayTheSpire2";
+    const longUrl = generateShareURL();
+
+    // モバイル判定
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    // スマホのみ Web Share API を使用
+    if (isMobile && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'StS2 Tier List',
+          text: `${textBody}\n${hashtags}`,
+          url: longUrl,
+        });
+        return;
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return;
+        console.error('Share failed:', err);
+      }
+    }
+
+    // PC またはフォールバック: Intent URL を直接開く
+    const fullText = `${textBody}\n${longUrl}\n${hashtags}`;
+    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`;
+    window.open(shareUrl, '_blank', 'noreferrer');
+  };
+
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
       const sorted = (data as any[]).sort((a, b) => {
@@ -395,7 +426,7 @@ export default function CardsPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === null) return; // 待機: キャラクターが決まるまでフェッチしない
+    if (activeTab === null) return;
     setLoading(true);
     const colorQuery = activeTab === 'all' ? '' : `&color=${activeTab}`;
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
@@ -669,7 +700,7 @@ export default function CardsPage() {
               </button>
               <div className="flex gap-2">
                 <button onClick={(e) => { e.stopPropagation(); const url = generateShareURL(); navigator.clipboard.writeText(url); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
-                <a href={twitterShareUrl} target="_blank" rel="noopener noreferrer" className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0] cursor-pointer">Share on X</a>
+                <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
                 <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
               </div>
             </div>
