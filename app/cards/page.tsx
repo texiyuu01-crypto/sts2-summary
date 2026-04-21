@@ -354,17 +354,23 @@ export default function CardsPage() {
     TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
     const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const shareUrl = `${window.location.origin}${window.location.pathname}?t=${hash}`;
-    navigator.clipboard.writeText(shareUrl);
-    return shareUrl;
+    return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
 
-  const shareX = () => {
+  const shareX = async () => {
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
-    const text = encodeURIComponent(`Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n`);
-    const url = encodeURIComponent(generateShareURL()); 
-    const hashtags = encodeURIComponent("スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2");
-    window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}&hashtags=${hashtags}`, '_blank');
+    const longUrl = generateShareURL();
+    let shortUrl = longUrl;
+    try {
+      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+      if (response.ok) {
+        shortUrl = await response.text();
+      }
+    } catch (e) {
+      console.warn('URL短縮失敗、元のURLを使用します', e);
+    }
+    const text = encodeURIComponent(`Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${shortUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`);
+    window.open(`https://x.com/intent/tweet?text=${text}`, '_blank');
   };
 
   useEffect(() => {
