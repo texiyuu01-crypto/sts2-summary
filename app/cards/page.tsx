@@ -358,31 +358,33 @@ export default function CardsPage() {
   }, [tierData, activeTab]);
 
   const shareX = async () => {
-    // 1. 先に「空のウィンドウ」を開いておく（ユーザーアクションとして認識させる）
-    const newWindow = window.open('', '_blank');
-
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
-    let shortUrl = longUrl;
+    
+    // Xアプリへの遷移を確実にするため、一旦「短縮なし」のテキストを作る
+    const baseText = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n`;
+    const tags = `\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
 
-    try {
+    // スマホ判定（簡易的）
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // 【重要】スマホの場合は await せずに即座に location.href を実行
+      const text = encodeURIComponent(`${baseText}${longUrl}${tags}`);
+      location.href = `https://twitter.com/intent/tweet?text=${text}`;
+    } else {
+      // PCの場合は今まで通り短縮を試みる
+      let shortUrl = longUrl;
+      try {
         const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
         if (response.ok) shortUrl = await response.text();
-    } catch (e) {
+      } catch (e) {
         console.warn('URL短縮失敗', e);
+      }
+      const text = encodeURIComponent(`${baseText}${shortUrl}${tags}`);
+      window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
     }
-
-    const tweetText = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${shortUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
-    const finalUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
-
-    // 2. 準備ができたら、開いておいたウィンドウのURLを書き換える
-    if (newWindow) {
-        newWindow.location.href = finalUrl;
-    } else {
-        // ポップアップブロックなどで開けなかった場合のフォールバック
-        location.href = finalUrl;
-    }
-};
+  };
 
   useEffect(() => {
     fetch('https://spire-codex.com/api/characters?lang=jpn').then(res => res.json()).then(data => {
