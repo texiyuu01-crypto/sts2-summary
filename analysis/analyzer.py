@@ -1,11 +1,10 @@
-import json
+﻿import json
 import os
 import glob
 from collections import defaultdict
 from datetime import datetime
 
 # 設定：入力と出力のパス
-# クローラーが保存しているディレクトリを対象にする
 DATA_DIR = os.path.join(os.path.dirname(__file__), '../src/data')
 OUTPUT_FILE = os.path.join(DATA_DIR, 'tier_stats.json')
 
@@ -14,7 +13,6 @@ def analyze():
         print(f"Error: Data directory {DATA_DIR} not found.")
         return
 
-    # 1. 全ての日別JSONファイルをリストアップ
     json_files = glob.glob(os.path.join(DATA_DIR, 'runs_*.json'))
     if not json_files:
         print("No run data files found.")
@@ -23,7 +21,6 @@ def analyze():
     all_runs = []
     processed_hashes = set()
 
-    # 2. 各ファイルを読み込み（重複排除しつつ結合）
     for file_path in json_files:
         with open(file_path, 'r', encoding='utf-8') as f:
             try:
@@ -39,47 +36,37 @@ def analyze():
 
     print(f"Analyzing {len(all_runs)} unique runs...")
 
-    # --- 以下、統計ロジック ---
+    # 統計データ構造の初期化（シングル/マルチの項目を明示）
+    def factory():
+        return {
+            "picked_count": 0, "picked_wins": 0,
+            "picked_single": 0, "picked_single_wins": 0,
+            "picked_multi": 0, "picked_multi_wins": 0,
+            "final_count": 0, "final_wins": 0,
+            "appeared": 0, "appeared_single": 0, "appeared_multi": 0
+        }
 
-    stats = defaultdict(lambda: defaultdict(lambda: {
-        "picked": 0, "appeared": 0, "wins": 0,
-        "picked_single": 0, "picked_multi": 0,
-        "appeared_single": 0, "appeared_multi": 0,
-        "wins_single": 0, "wins_multi": 0
-    }))
-    
-    stats_by_version = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
-        "picked": 0, "appeared": 0, "wins": 0,
-        "picked_single": 0, "picked_multi": 0,
-        "appeared_single": 0, "appeared_multi": 0,
-        "wins_single": 0, "wins_multi": 0
-    })))
-    
-    stats_by_ascension = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
-        "picked": 0, "appeared": 0, "wins": 0,
-        "picked_single": 0, "picked_multi": 0,
-        "appeared_single": 0, "appeared_multi": 0,
-        "wins_single": 0, "wins_multi": 0
-    })))
-    
-    stats_by_version_ascension = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {
-        "picked": 0, "appeared": 0, "wins": 0,
-        "picked_single": 0, "picked_multi": 0,
-        "appeared_single": 0, "appeared_multi": 0,
-        "wins_single": 0, "wins_multi": 0
-    }))))
+    # サマリ用（母数計算に必須）
+    def summary_factory():
+        return {
+            "total_runs": 0, "total_wins": 0,
+            "total_runs_single": 0, "total_wins_single": 0,
+            "total_runs_multi": 0, "total_wins_multi": 0
+        }
 
-    char_totals = defaultdict(lambda: {"total_runs": 0, "total_wins": 0, "total_runs_single": 0, "total_runs_multi": 0, "total_wins_single": 0, "total_wins_multi": 0})
-    char_totals_by_version = defaultdict(lambda: defaultdict(lambda: {"total_runs": 0, "total_wins": 0, "total_runs_single": 0, "total_runs_multi": 0, "total_wins_single": 0, "total_wins_multi": 0}))
-    char_totals_by_ascension = defaultdict(lambda: defaultdict(lambda: {"total_runs": 0, "total_wins": 0, "total_runs_single": 0, "total_runs_multi": 0, "total_wins_single": 0, "total_wins_multi": 0}))
-    char_totals_by_version_ascension = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {"total_runs": 0, "total_wins": 0, "total_runs_single": 0, "total_runs_multi": 0, "total_wins_single": 0, "total_wins_multi": 0})))
+    stats = defaultdict(lambda: defaultdict(factory))
+    stats_by_v = defaultdict(lambda: defaultdict(lambda: defaultdict(factory)))
+    stats_by_a = defaultdict(lambda: defaultdict(lambda: defaultdict(factory)))
+    stats_by_va = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(factory))))
+
+    summary = defaultdict(summary_factory)
+    summary_by_v = defaultdict(lambda: defaultdict(summary_factory))
+    summary_by_a = defaultdict(lambda: defaultdict(summary_factory))
+    summary_by_va = defaultdict(lambda: defaultdict(lambda: defaultdict(summary_factory)))
 
     def normalize_char(val):
         if not val: return None
-        if isinstance(val, str):
-            s = val.strip().replace('CHARACTER.', '').replace('Character.', '').lower().replace('the ', '')
-            return s
-        return None
+        return str(val).strip().replace('CHARACTER.', '').replace('Character.', '').lower().replace('the ', '')
 
     def detect_character(run_obj):
         for k in ('character', 'character_id', 'player_character', 'player_char', 'player_class'):
@@ -119,54 +106,73 @@ def analyze():
         version = detect_version(run)
         asc = detect_ascension(run)
         is_win = run.get('win') is True or run.get('win') == 1
+        
+        # シングル/マルチ判定
         players = run.get('players') or []
         run_type = 'single' if (not isinstance(players, list) or len(players) <= 1) else 'multi'
+        
+        # 1. サマリ（分母）の更新
+        target_summaries = [
+            summary[char],
+            summary_by_v[version][char],
+            summary_by_a[asc][char],
+            summary_by_va[version][asc][char]
+        ]
+        for s in target_summaries:
+            s["total_runs"] += 1
+            if is_win: s["total_wins"] += 1
+            s[f"total_runs_{run_type}"] += 1
+            if is_win: s[f"total_wins_{run_type}"] += 1
 
-        # サマリ更新
-        for d in [char_totals[char], 
-                  char_totals_by_version[version][char], 
-                  char_totals_by_ascension[asc][char],
-                  char_totals_by_version_ascension[version][asc][char]]:
-            d["total_runs"] += 1
-            if is_win: d["total_wins"] += 1
-            if run_type == 'single':
-                d["total_runs_single"] += 1
-                if is_win: d["total_wins_single"] += 1
-            else:
-                d["total_runs_multi"] += 1
-                if is_win: d["total_wins_multi"] += 1
+        # 2. カードごとの重複排除用セット
+        picked_in_run = set()
+        final_in_run = set()
 
-        # 各フロアの選択履歴を解析
+        # 提示とピックの集計
         for act in run.get('map_point_history', []):
             for floor in act:
                 for p_stat in floor.get('player_stats', []):
                     for choice in p_stat.get('card_choices', []):
-                        card_id = choice.get('card', {}).get('id')
-                        if not card_id: continue
-
-                        was_picked = choice.get('was_picked')
+                        cid = choice.get('card', {}).get('id')
+                        if not cid: continue
                         
-                        # 統計対象リスト
-                        target_stats = [
-                            stats[char][card_id],
-                            stats_by_version[version][char][card_id],
-                            stats_by_ascension[asc][char][card_id],
-                            stats_by_version_ascension[version][asc][char][card_id]
-                        ]
+                        # 提示(Appeared)は「提示された回数」なので重複して数えても良い（または必要に応じて調整）
+                        # ここでは以前の仕様に合わせ、提示のたびにカウント
+                        target_cards = [stats[char][cid], stats_by_v[version][char][cid], stats_by_a[asc][char][cid], stats_by_va[version][asc][char][cid]]
+                        for node in target_cards:
+                            node["appeared"] += 1
+                            node[f"appeared_{run_type}"] += 1
+                        
+                        if choice.get('was_picked'):
+                            picked_in_run.add(cid) # 重複排除のためセットに入れる
 
-                        for s in target_stats:
-                            s["appeared"] += 1
-                            if run_type == 'single': s["appeared_single"] += 1
-                            else: s["appeared_multi"] += 1
-                            
-                            if was_picked:
-                                s["picked"] += 1
-                                if run_type == 'single': s["picked_single"] += 1
-                                else: s["picked_multi"] += 1
-                                if is_win:
-                                    s["wins"] += 1
-                                    if run_type == 'single': s["wins_single"] += 1
-                                    else: s["wins_multi"] += 1
+        # デッキ内カードの集計
+        for p in players:
+            for c in p.get('deck', []):
+                cid = c.get('id')
+                if cid: final_in_run.add(cid)
+
+        # 3. 統計への反映 (1ランにつき各カード最大1カウント)
+        target_scopes = [
+            stats[char],
+            stats_by_v[version][char],
+            stats_by_a[asc][char],
+            stats_by_va[version][asc][char]
+        ]
+
+        for cid in picked_in_run:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["picked_count"] += 1
+                if is_win: node["picked_wins"] += 1
+                node[f"picked_{run_type}"] += 1
+                if is_win: node[f"picked_{run_type}_wins"] += 1
+
+        for cid in final_in_run:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["final_count"] += 1
+                if is_win: node["final_wins"] += 1
 
         if char == 'UNKNOWN' and len(unknown_examples) < 5:
             unknown_examples.append({k: run.get(k) for k in ('run_hash', 'start_time') if k in run})
@@ -177,11 +183,11 @@ def analyze():
         return d
 
     result = {
-        "summary": dictify(char_totals),
+        "summary": dictify(summary),
         "cards": dictify(stats),
-        "by_version": {"summary": dictify(char_totals_by_version), "cards": dictify(stats_by_version)},
-        "by_ascension": {"summary": dictify(char_totals_by_ascension), "cards": dictify(stats_by_ascension)},
-        "by_version_ascension": {"summary": dictify(char_totals_by_version_ascension), "cards": dictify(stats_by_version_ascension)},
+        "by_version": {"summary": dictify(summary_by_v), "cards": dictify(stats_by_v)},
+        "by_ascension": {"summary": dictify(summary_by_a), "cards": dictify(stats_by_a)},
+        "by_version_ascension": {"summary": dictify(summary_by_va), "cards": dictify(stats_by_va)},
         "updated_at": datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
     }
 
@@ -190,7 +196,6 @@ def analyze():
 
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
-    
     print(f"Analysis complete! Saved to {OUTPUT_FILE}")
 
 if __name__ == "__main__":
