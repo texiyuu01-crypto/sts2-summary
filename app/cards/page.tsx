@@ -353,19 +353,19 @@ export default function CardsPage() {
     const compactData: any = { tab: activeTab, tiers: {} };
     TIER_ROWS.forEach(row => { if (tierData[row.id].length > 0) compactData.tiers[row.id] = tierData[row.id].map(c => c.id); });
     const jsonString = JSON.stringify(compactData);
-    const hash = btoa(jsonString).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const hash = btoa(unescape(encodeURIComponent(jsonString))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     if (typeof window === 'undefined') return '';
-    return `${window.location.origin}${window.location.pathname}#t=${hash}`;
+    return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
 
   const twitterShareUrl = useMemo(() => {
     if (typeof window === 'undefined') return "";
     const currentChar = characters.find(c => c.id === activeTab)?.name || "";
     const charText = currentChar ? `【${currentChar}】` : "";
-    const textBody = `Slay the Spire 2 ${charText} Tier List を作成しました！`;
     const longUrl = generateShareURL();
-    const hashtagList = "スレスパ2,スレイザスパイア2,STS2,Tier表,SlayTheSpire2";
-    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(textBody)}&url=${encodeURIComponent(longUrl)}&hashtags=${encodeURIComponent(hashtagList)}`;
+    const text = `Slay the Spire 2 ${charText} Tier List を作成しました！`;
+    const hashtagList = "スレスパ2,STS2,Tier表,SlayTheSpire2";
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(longUrl)}&hashtags=${encodeURIComponent(hashtagList)}`;
   }, [activeTab, tierData, generateShareURL]);
 
   useEffect(() => {
@@ -377,17 +377,13 @@ export default function CardsPage() {
       });
       setCharacters(sorted);
       const urlParams = new URLSearchParams(window.location.search);
-      let t = urlParams.get('t');
-      if (!t && window.location.hash.startsWith('#t=')) {
-        t = window.location.hash.substring(3);
-      }
+      const t = urlParams.get('t');
       if (t) {
         try {
           const decoded = atob(t.replace(/-/g, '+').replace(/_/g, '/'));
           const compactData = JSON.parse(decoded);
           if (compactData.tab) setActiveTab(compactData.tab);
           setIsTierMode(true);
-          // 共有リンク優先: URLパラメータがある場合は展開(false)にする
           setIsCompact(false);
         } catch(e) {}
       } else {
@@ -405,10 +401,7 @@ export default function CardsPage() {
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
       setAllCards(data);
       const urlParams = new URLSearchParams(window.location.search);
-      let t = urlParams.get('t');
-      if (!t && window.location.hash.startsWith('#t=')) {
-        t = window.location.hash.substring(3);
-      }
+      const t = urlParams.get('t');
       if (t) applyHashToData(t, data);
       else setTierData({ pool: data, S: [], A: [], B: [], C: [], D: [] });
       setLoading(false);
