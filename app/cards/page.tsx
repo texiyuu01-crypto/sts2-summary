@@ -361,7 +361,8 @@ export default function CardsPage() {
   const twitterShareUrl = useMemo(() => {
     const currentChar = characters.find(c => c.id === activeTab)?.name || "All Characters";
     const longUrl = generateShareURL();
-    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${longUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
+    const encodedLongUrl = encodeURIComponent(longUrl);
+    const text = `Slay the Spire 2 【${currentChar}】 Tier List を作成しました！\n${encodedLongUrl}\n\n#スレスパ2 #スレイザスパイア2 #STS2 #Tier表 #SlayTheSpire2`;
     return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
   }, [activeTab, tierData, generateShareURL]);
 
