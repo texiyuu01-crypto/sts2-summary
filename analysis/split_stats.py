@@ -60,11 +60,11 @@ def split_json(input_file, output_dir):
         print(f"Generated: by_version_ascension_summary.json")
 
         va_cards = by_va.get('cards', {})
-        for version, char_data in va_cards.items():
-            for char_name, cards in char_data.items():
-                filename = f"by_version_ascension_cards_{version}_{char_name.lower()}.json"
+        for version, asc_data in va_cards.items():
+            for ascension, char_data in asc_data.items():
+                filename = f"by_version_ascension_cards_{version}_{ascension}.json"
                 with open(f'{output_dir}/{filename}', 'w', encoding='utf-8') as f:
-                    json.dump(cards, f, ensure_ascii=False, indent=2)
+                    json.dump(char_data, f, ensure_ascii=False, indent=2)
                     print(f"Generated: {filename}")
 
     # 6. updated_atも保存
