@@ -2,6 +2,7 @@ import React from 'react';
 import StatsGridClient from './StatsGridClient';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export default function TierPage() {
   return (
