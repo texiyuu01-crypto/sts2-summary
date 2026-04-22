@@ -82,6 +82,17 @@ export default function StatsGridClient() {
           }
         }
 
+        // Load by_version_ascension summary for accurate calculation
+        let byVersionAscensionSummary: any = {};
+        try {
+          const bvaRes = await fetch('/data/by_version_ascension_summary.json');
+          if (bvaRes.ok) {
+            byVersionAscensionSummary = await bvaRes.json();
+          }
+        } catch (e) {
+          console.warn('Failed to load by_version_ascension summary:', e);
+        }
+
         // Load updated_at
         let updatedAt = '';
         try {
@@ -99,7 +110,7 @@ export default function StatsGridClient() {
           cards: cardsSource,
           by_version: { summary: byVersionSummary, cards: byVersionCards },
           by_ascension: { summary: byAscensionSummary, cards: byAscensionCards },
-          by_version_ascension: { summary: {}, cards: {} },
+          by_version_ascension: { summary: byVersionAscensionSummary, cards: {} },
           updated_at: updatedAt
         };
         setStatsData(finalData);
