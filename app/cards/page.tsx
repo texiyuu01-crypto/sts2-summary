@@ -358,6 +358,18 @@ export default function CardsPage() {
     return `${window.location.origin}${window.location.pathname}?t=${hash}`;
   }, [tierData, activeTab]);
 
+  const getShortUrl = async (longUrl: string): Promise<string> => {
+    try {
+      const res = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+      if (res.ok) {
+        return await res.text();
+      }
+    } catch (err) {
+      console.warn('URL短縮失敗', err);
+    }
+    return longUrl;
+  };
+
   const twitterShareUrl = useMemo(() => {
     if (typeof window === 'undefined') return "";
     const currentChar = characters.find(c => c.id === activeTab)?.name || "";
@@ -375,6 +387,9 @@ export default function CardsPage() {
     const hashtags = "#スレスパ2 #STS2 #Tier表 #SlayTheSpire2";
     const longUrl = generateShareURL();
 
+    // URLを短縮
+    const shortUrl = await getShortUrl(longUrl);
+
     // モバイル判定
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -384,7 +399,7 @@ export default function CardsPage() {
         await navigator.share({
           title: 'StS2 Tier List',
           text: `${textBody}\n${hashtags}`,
-          url: longUrl,
+          url: shortUrl,
         });
         return;
       } catch (err) {
@@ -394,7 +409,7 @@ export default function CardsPage() {
     }
 
     // PC またはフォールバック: Intent URL を直接開く
-    const fullText = `${textBody}\n${longUrl}\n${hashtags}`;
+    const fullText = `${textBody}\n${shortUrl}\n${hashtags}`;
     const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`;
     window.open(shareUrl, '_blank', 'noreferrer');
   };
@@ -716,7 +731,7 @@ export default function CardsPage() {
                 {isCompact ? 'EXPAND' : 'COLLAPSE'}
               </button>
               <div className="flex gap-2">
-                <button onClick={(e) => { e.stopPropagation(); const url = generateShareURL(); navigator.clipboard.writeText(url); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
+                <button onClick={async (e) => { e.stopPropagation(); const longUrl = generateShareURL(); const shortUrl = await getShortUrl(longUrl); navigator.clipboard.writeText(shortUrl); alert("URLをコピーしました！"); }} className="text-[9px] font-black text-[#10b981] border border-[#10b9814d] px-3 py-1 rounded-sm uppercase hover:bg-[#10b9811a]">Copy Link</button>
                 <button onClick={(e) => { e.stopPropagation(); shareX(); }} className="text-[9px] font-black text-[#ffffff] border border-[#ffffff4d] px-3 py-1 rounded-sm uppercase hover:bg-[#1d9bf0] bg-[#1d9bf0]">Share on X</button>
                 <button onClick={(e) => { e.stopPropagation(); exportPNG(); }} className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a]">PNG</button>
               </div>
