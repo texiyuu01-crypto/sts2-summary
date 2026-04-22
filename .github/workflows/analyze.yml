@@ -30,6 +30,9 @@ jobs:
       - name: Run analyzer
         run: python analysis/analyzer.py
 
+      - name: Run split_stats
+        run: python analysis/split_stats.py
+
       - name: Commit and Push
         run: |
           git config --local user.email "action@github.com"
