@@ -251,41 +251,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         return merged;
       }
       
-      // Fallback: intersect by_version and by_ascension data
-      const verGroup = resolveVerGroup(v);
-      const ascGroup = resolveAscGroup(a);
-      
-      if (verGroup && ascGroup) {
-        const intersected: Record<string, any> = {};
-        Object.entries(verGroup).forEach(([char, verCards]: any) => {
-          if (ascGroup[char]) {
-            intersected[char] = {};
-            Object.entries(verCards).forEach(([cardId, verStats]: any) => {
-              if (ascGroup[char][cardId]) {
-                // Merge stats from both sources (take min for appeared/picked/final to avoid double counting)
-                const ascStats = ascGroup[char][cardId];
-                const mergedStats: any = { ...verStats };
-                Object.keys(verStats).forEach(key => {
-                  const vVal = verStats[key];
-                  const aVal = ascStats[key];
-                  if (typeof vVal === 'number' && typeof aVal === 'number') {
-                    // For appeared/picked/final counts, take min to avoid double counting
-                    if (key.includes('appeared') || key.includes('picked') || key.includes('final')) {
-                      mergedStats[key] = Math.min(vVal, aVal);
-                    } else {
-                      mergedStats[key] = vVal; // Use version stats for other fields
-                    }
-                  }
-                });
-                intersected[char][cardId] = mergedStats;
-              }
-            });
-          }
-        });
-        if (Object.keys(intersected).length > 0) {
-          return intersected;
-        }
-      }
+      // Fallback: if by_version_ascension data is not available, return empty object
+      // We cannot accurately calculate intersection without proper data
+      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- returning empty');
+      return {};
     }
 
     // Fallback for single selections (not arrays)
@@ -488,9 +457,9 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         const floor3Appeared = st.floor3_appeared ?? 0;
         return { picked, wins, appeared, final, finalWins, floor1Picked, floor1PickedWins, floor1Appeared, floor2Picked, floor2PickedWins, floor2Appeared, floor3Picked, floor3PickedWins, floor3Appeared };
       } else {
-        const picked = st.picked_multi ?? st.picked_count ?? 0;
-        const wins = st.picked_multi_wins ?? st.picked_wins ?? 0;
-        const appeared = st.appeared_multi ?? st.appeared ?? 0;
+        const picked = st.picked_multi ?? 0;
+        const wins = st.picked_multi_wins ?? 0;
+        const appeared = st.appeared_multi ?? 0;
         const final = st.final_count ?? 0;
         const finalWins = st.final_wins ?? 0;
         const floor1Picked = st.floor1_picked ?? 0;
