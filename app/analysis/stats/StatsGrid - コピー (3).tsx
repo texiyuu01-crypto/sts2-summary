@@ -237,20 +237,6 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       const vArr = Array.isArray(v) ? v : [v];
       const aArr = Array.isArray(a) ? a : [a];
       
-      // If one side is empty (ALL equivalent), use the other side directly
-      if (vArr.length === 0 && aArr.length > 0) {
-        console.log('resolveCardsSource: v is ALL, using ascension data only');
-        return resolveAscGroup(a) || statsData.cards || {};
-      }
-      if (aArr.length === 0 && vArr.length > 0) {
-        console.log('resolveCardsSource: a is ALL, using version data only');
-        return resolveVerGroup(v) || statsData.cards || {};
-      }
-      if (vArr.length === 0 && aArr.length === 0) {
-        console.log('resolveCardsSource: both are ALL, using all cards');
-        return statsData.cards || {};
-      }
-      
       // First try by_version_ascension
       const groups: any[] = [];
       vArr.forEach(ver => {
@@ -824,37 +810,25 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 console.log('by_version_ascension.summary available:', !!statsData.by_version_ascension?.summary);
                 console.log('by_version_ascension.summary keys:', statsData.by_version_ascension?.summary ? Object.keys(statsData.by_version_ascension.summary) : 'N/A');
                 
-                // If one side is empty (ALL equivalent), use the other side directly
-                if (vArr.length === 0 && aArr.length > 0) {
-                  console.log('Summary: v is ALL, using ascension data only');
-                  summarySource = mergedAsc;
-                } else if (aArr.length === 0 && vArr.length > 0) {
-                  console.log('Summary: a is ALL, using version data only');
-                  summarySource = mergedVer;
-                } else if (vArr.length === 0 && aArr.length === 0) {
-                  console.log('Summary: both are ALL, using all data');
-                  summarySource = statsData.summary || {};
-                } else {
-                  // Sum mergedVer and mergedAsc (union/OR logic)
-                  const summed: Record<string, any> = {};
-                  
-                  // Add version data
-                  Object.keys(mergedVer).forEach(char => {
-                    if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                    summed[char].total_runs_single += mergedVer[char].total_runs_single || 0;
-                    summed[char].total_runs_multi += mergedVer[char].total_runs_multi || 0;
-                  });
-                  
-                  // Add ascension data
-                  Object.keys(mergedAsc).forEach(char => {
-                    if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                    summed[char].total_runs_single += mergedAsc[char].total_runs_single || 0;
-                    summed[char].total_runs_multi += mergedAsc[char].total_runs_multi || 0;
-                  });
-                  
-                  console.log('summed summary:', summed);
-                  summarySource = summed;
-                }
+                // Sum mergedVer and mergedAsc (union/OR logic)
+                const summed: Record<string, any> = {};
+                
+                // Add version data
+                Object.keys(mergedVer).forEach(char => {
+                  if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
+                  summed[char].total_runs_single += mergedVer[char].total_runs_single || 0;
+                  summed[char].total_runs_multi += mergedVer[char].total_runs_multi || 0;
+                });
+                
+                // Add ascension data
+                Object.keys(mergedAsc).forEach(char => {
+                  if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
+                  summed[char].total_runs_single += mergedAsc[char].total_runs_single || 0;
+                  summed[char].total_runs_multi += mergedAsc[char].total_runs_multi || 0;
+                });
+                
+                console.log('summed summary:', summed);
+                summarySource = summed;
               }
             }
 
