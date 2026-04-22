@@ -800,6 +800,26 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 });
               });
               summarySource = mergeSummary(sources);
+              
+              // If by_version_ascension.summary is empty, intersect by_version.summary and by_ascension.summary
+              if (Object.keys(summarySource).length === 0) {
+                const verSummaries = vArr.map(v => statsData.by_version?.summary?.[v] || {});
+                const ascSummaries = aArr.map(a => statsData.by_ascension?.summary?.[a] || {});
+                const mergedVer = mergeSummary(verSummaries);
+                const mergedAsc = mergeSummary(ascSummaries);
+                
+                // Intersect: take min of runs for each character
+                const intersected: Record<string, any> = {};
+                Object.keys(mergedVer).forEach(char => {
+                  if (mergedAsc[char]) {
+                    intersected[char] = {
+                      total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
+                      total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
+                    };
+                  }
+                });
+                summarySource = intersected;
+              }
             }
 
             if (activeChar === 'ALL') {
