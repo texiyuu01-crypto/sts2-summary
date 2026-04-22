@@ -793,11 +793,13 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 const mergedAsc = mergeSummary(ascSummaries);
                 console.log('mergedVer:', mergedVer);
                 console.log('mergedAsc:', mergedAsc);
+                console.log('by_version_ascension.summary available:', !!statsData.by_version_ascension?.summary);
+                console.log('by_version_ascension.summary keys:', statsData.by_version_ascension?.summary ? Object.keys(statsData.by_version_ascension.summary) : 'N/A');
                 
                 // For multiple selections, handle differently:
                 // - Single version + Multiple ascensions: Use merged ascension (already summed)
                 // - Multiple versions + Single ascension: Use merged version (already summed)
-                // - Multiple versions + Multiple ascensions: Estimate using average of merged values
+                // - Multiple versions + Multiple ascensions: Try to use by_version_ascension data if available
                 const intersected: Record<string, any> = {};
                 const isSingleVersion = vArr.length === 1;
                 const isSingleAscension = aArr.length === 1;
@@ -824,17 +826,32 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                         total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
                       };
                     } else {
-                      // Both multiple: estimate using average of the two merged values
-                      // This is a rough estimate since we don't have by_version_ascension data
-                      const verRuns = mergedVer[char].total_runs_single || 0;
-                      const ascRuns = mergedAsc[char].total_runs_single || 0;
-                      const verRunsMulti = mergedVer[char].total_runs_multi || 0;
-                      const ascRunsMulti = mergedAsc[char].total_runs_multi || 0;
-                      // Use average as a reasonable estimate
-                      intersected[char] = {
-                        total_runs_single: (verRuns + ascRuns) / 2,
-                        total_runs_multi: (verRunsMulti + ascRunsMulti) / 2
-                      };
+                      // Both multiple: try to sum by_version_ascension data if available
+                      let totalSingle = 0;
+                      let totalMulti = 0;
+                      let hasData = false;
+                      vArr.forEach(ver => {
+                        aArr.forEach(asc => {
+                          if (statsData.by_version_ascension?.summary?.[ver]?.[asc]?.[char]) {
+                            const data = statsData.by_version_ascension.summary[ver][asc][char];
+                            totalSingle += data.total_runs_single || 0;
+                            totalMulti += data.total_runs_multi || 0;
+                            hasData = true;
+                          }
+                        });
+                      });
+                      if (hasData) {
+                        intersected[char] = {
+                          total_runs_single: totalSingle,
+                          total_runs_multi: totalMulti
+                        };
+                      } else {
+                        // Fallback: use min as conservative estimate
+                        intersected[char] = {
+                          total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
+                          total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
+                        };
+                      }
                     }
                   }
                 });
