@@ -270,7 +270,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const [includeOtherChar, setIncludeOtherChar] = useState(false);
   const [verOpen, setVerOpen] = useState(false);
   const [ascOpen, setAscOpen] = useState(false);
-  const [wrMode, setWrMode] = useState<'picked'|'final'>('picked');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<'pick_wr'|'pick_rate'|'final_wr'|'final_rate'|'floor1_pick_rate'|'floor1_pick_wr'|'floor2_pick_rate'|'floor2_pick_wr'|'floor3_pick_rate'|'floor3_pick_wr'>('pick_rate');
 
   useEffect(() => {
     setActiveChar((prev) => {
@@ -369,8 +370,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     });
     setVersions(['ALL', ...sortedV]);
     setAscensions(['ALL', ...sortedA]);
-    // default ascension: ALL
-    setSelectedAscension('ALL');
+    // default ascension: A10
+    setSelectedAscension(['A10']);
 
     // default version: select versions with matching second number (e.g., 0.103.2, 0.103.1, 0.103.0)
     if (sortedV.length > 0) {
@@ -414,25 +415,39 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     // get merged cards source using resolveCardsSource (supports multiple ascension selection)
     const cardsSource = resolveCardsSource();
     const pickCountsFrom = (st: any) => {
-      // New metrics: picked_single/picked_single_wins/picked_multi/picked_multi_wins
-      if (wrMode === 'picked') {
-        if (runType === 'single') {
-          const picked = st.picked_single ?? st.picked_count ?? 0;
-          const wins = st.picked_single_wins ?? st.picked_wins ?? 0;
-          const appeared = st.appeared_single ?? st.appeared ?? 0;
-          return { picked, wins, appeared };
-        } else {
-          const picked = st.picked_multi ?? st.picked_count ?? 0;
-          const wins = st.picked_multi_wins ?? st.picked_wins ?? 0;
-          const appeared = st.appeared_multi ?? st.appeared ?? 0;
-          return { picked, wins, appeared };
-        }
+      // Get metrics based on run type
+      if (runType === 'single') {
+        const picked = st.picked_single ?? st.picked_count ?? 0;
+        const wins = st.picked_single_wins ?? st.picked_wins ?? 0;
+        const appeared = st.appeared_single ?? st.appeared ?? 0;
+        const final = st.final_count ?? 0;
+        const finalWins = st.final_wins ?? 0;
+        const floor1Picked = st.floor1_picked ?? 0;
+        const floor1PickedWins = st.floor1_picked_wins ?? 0;
+        const floor1Appeared = st.floor1_appeared ?? 0;
+        const floor2Picked = st.floor2_picked ?? 0;
+        const floor2PickedWins = st.floor2_picked_wins ?? 0;
+        const floor2Appeared = st.floor2_appeared ?? 0;
+        const floor3Picked = st.floor3_picked ?? 0;
+        const floor3PickedWins = st.floor3_picked_wins ?? 0;
+        const floor3Appeared = st.floor3_appeared ?? 0;
+        return { picked, wins, appeared, final, finalWins, floor1Picked, floor1PickedWins, floor1Appeared, floor2Picked, floor2PickedWins, floor2Appeared, floor3Picked, floor3PickedWins, floor3Appeared };
       } else {
-        // Final mode doesn't have single/multi split in current implementation
-        const picked = st.final_count ?? 0;
-        const wins = st.final_wins ?? 0;
-        const appeared = st.appeared ?? 0;
-        return { picked, wins, appeared };
+        const picked = st.picked_multi ?? st.picked_count ?? 0;
+        const wins = st.picked_multi_wins ?? st.picked_wins ?? 0;
+        const appeared = st.appeared_multi ?? st.appeared ?? 0;
+        const final = st.final_count ?? 0;
+        const finalWins = st.final_wins ?? 0;
+        const floor1Picked = st.floor1_picked ?? 0;
+        const floor1PickedWins = st.floor1_picked_wins ?? 0;
+        const floor1Appeared = st.floor1_appeared ?? 0;
+        const floor2Picked = st.floor2_picked ?? 0;
+        const floor2PickedWins = st.floor2_picked_wins ?? 0;
+        const floor2Appeared = st.floor2_appeared ?? 0;
+        const floor3Picked = st.floor3_picked ?? 0;
+        const floor3PickedWins = st.floor3_picked_wins ?? 0;
+        const floor3Appeared = st.floor3_appeared ?? 0;
+        return { picked, wins, appeared, final, finalWins, floor1Picked, floor1PickedWins, floor1Appeared, floor2Picked, floor2PickedWins, floor2Appeared, floor3Picked, floor3PickedWins, floor3Appeared };
       }
     };
     // cardsSource already resolved above
@@ -441,20 +456,67 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       Object.values(cardsSource).forEach((group: any) => {
         Object.entries(group).forEach(([id, st]: any) => {
           const counts = pickCountsFrom(st);
-          if (!map[id]) map[id] = { ...st, picked: counts.picked, wins: counts.wins, appeared: counts.appeared };
-          else { map[id].picked += counts.picked; map[id].wins += counts.wins; map[id].appeared += counts.appeared; }
+          if (!map[id]) map[id] = { ...st, picked: counts.picked, wins: counts.wins, appeared: counts.appeared, final: counts.final, finalWins: counts.finalWins, floor1Picked: counts.floor1Picked, floor1PickedWins: counts.floor1PickedWins, floor1Appeared: counts.floor1Appeared, floor2Picked: counts.floor2Picked, floor2PickedWins: counts.floor2PickedWins, floor2Appeared: counts.floor2Appeared, floor3Picked: counts.floor3Picked, floor3PickedWins: counts.floor3PickedWins, floor3Appeared: counts.floor3Appeared };
+          else { map[id].picked += counts.picked; map[id].wins += counts.wins; map[id].appeared += counts.appeared; map[id].final += counts.final; map[id].finalWins += counts.finalWins; map[id].floor1Picked += counts.floor1Picked; map[id].floor1PickedWins += counts.floor1PickedWins; map[id].floor1Appeared += counts.floor1Appeared; map[id].floor2Picked += counts.floor2Picked; map[id].floor2PickedWins += counts.floor2PickedWins; map[id].floor2Appeared += counts.floor2Appeared; map[id].floor3Picked += counts.floor3Picked; map[id].floor3PickedWins += counts.floor3PickedWins; map[id].floor3Appeared += counts.floor3Appeared; }
         });
       });
-      return Object.entries(map).map(([id, st]: any) => ({ id, ...st, wr: st.picked ? (st.wins / st.picked) * 100 : 0 }));
+      return Object.entries(map).map(([id, st]: any) => ({ 
+        id, 
+        ...st, 
+        pickWr: st.picked ? (st.wins / st.picked) * 100 : 0,
+        pickRate: st.appeared ? (st.picked / st.appeared) * 100 : 0,
+        finalWr: st.final ? (st.finalWins / st.final) * 100 : 0,
+        finalRate: st.appeared ? (st.final / st.appeared) * 100 : 0,
+        floor1PickRate: st.floor1Appeared ? (st.floor1Picked / st.floor1Appeared) * 100 : 0,
+        floor1PickWr: st.floor1Picked ? (st.floor1PickedWins / st.floor1Picked) * 100 : 0,
+        floor2PickRate: st.floor2Appeared ? (st.floor2Picked / st.floor2Appeared) * 100 : 0,
+        floor2PickWr: st.floor2Picked ? (st.floor2PickedWins / st.floor2Picked) * 100 : 0,
+        floor3PickRate: st.floor3Appeared ? (st.floor3Picked / st.floor3Appeared) * 100 : 0,
+        floor3PickWr: st.floor3Picked ? (st.floor3PickedWins / st.floor3Picked) * 100 : 0
+      }));
     }
     const group = cardsSource[activeChar] || {};
     return Object.entries(group).map(([id, st]: any) => {
       const counts = pickCountsFrom(st);
-      return ({ id, ...st, picked: counts.picked, wins: counts.wins, appeared: counts.appeared, wr: counts.picked ? (counts.wins / counts.picked) * 100 : 0 });
+      return ({ 
+        id, 
+        ...st, 
+        picked: counts.picked, 
+        wins: counts.wins, 
+        appeared: counts.appeared,
+        final: counts.final,
+        finalWins: counts.finalWins,
+        pickWr: counts.picked ? (counts.wins / counts.picked) * 100 : 0,
+        pickRate: counts.appeared ? (counts.picked / counts.appeared) * 100 : 0,
+        finalWr: counts.final ? (counts.finalWins / counts.final) * 100 : 0,
+        finalRate: counts.appeared ? (counts.final / counts.appeared) * 100 : 0,
+        floor1PickRate: counts.floor1Appeared ? (counts.floor1Picked / counts.floor1Appeared) * 100 : 0,
+        floor1PickWr: counts.floor1Picked ? (counts.floor1PickedWins / counts.floor1Picked) * 100 : 0,
+        floor2PickRate: counts.floor2Appeared ? (counts.floor2Picked / counts.floor2Appeared) * 100 : 0,
+        floor2PickWr: counts.floor2Picked ? (counts.floor2PickedWins / counts.floor2Picked) * 100 : 0,
+        floor3PickRate: counts.floor3Appeared ? (counts.floor3Picked / counts.floor3Appeared) * 100 : 0,
+        floor3PickWr: counts.floor3Picked ? (counts.floor3PickedWins / counts.floor3Picked) * 100 : 0
+      });
     });
   };
 
-  let list = getList().filter((c: any) => c.picked >= 3).sort((a: any, b: any) => b.wr - a.wr);
+  let list = getList().filter((c: any) => c.picked >= 3);
+  
+  // Sort based on selected criteria
+  const sortKeyMap: Record<typeof sortBy, string> = {
+    pick_wr: 'pickWr',
+    pick_rate: 'pickRate',
+    final_wr: 'finalWr',
+    final_rate: 'finalRate',
+    floor1_pick_rate: 'floor1PickRate',
+    floor1_pick_wr: 'floor1PickWr',
+    floor2_pick_rate: 'floor2PickRate',
+    floor2_pick_wr: 'floor2PickWr',
+    floor3_pick_rate: 'floor3PickRate',
+    floor3_pick_wr: 'floor3PickWr'
+  };
+  const sortKey = sortKeyMap[sortBy];
+  list = list.sort((a: any, b: any) => b[sortKey] - a[sortKey]);
 
   // If a specific character tab is active, filter list to that character's cards or colorless/common cards
   if (activeChar !== 'ALL') {
@@ -501,9 +563,50 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
           <label className="text-[9px] flex items-center gap-1"><input type="checkbox" checked={includeOtherChar} onChange={(e) => setIncludeOtherChar(e.target.checked)} /> 他キャラカードを含める</label>
         </div>
         <div className="flex items-center gap-3">
-          <label className="text-[9px] font-bold">勝率基準:</label>
-          <label className="text-[9px] flex items-center gap-1"><input type="radio" name="wrMode" checked={wrMode==='picked'} onChange={() => setWrMode('picked')} /> Pick勝率</label>
-          <label className="text-[9px] flex items-center gap-1"><input type="radio" name="wrMode" checked={wrMode==='final'} onChange={() => setWrMode('final')} /> Final勝率</label>
+          <label className="text-[9px] font-bold">ソート条件:</label>
+          <div className="relative">
+            <button onClick={() => setSortOpen(s => !s)} className="text-[9px] bg-[#071021] border border-[#ffffff1a] px-2 py-1 rounded-sm flex items-center gap-2">
+              <span>{
+                sortBy === 'pick_wr' ? 'Pick勝率' :
+                sortBy === 'pick_rate' ? 'Pick率' :
+                sortBy === 'final_wr' ? 'Final勝率' :
+                sortBy === 'final_rate' ? 'Final所持率' :
+                sortBy === 'floor1_pick_rate' ? '1層Pick率' :
+                sortBy === 'floor1_pick_wr' ? '1層Pick勝率' :
+                sortBy === 'floor2_pick_rate' ? '2層Pick率' :
+                sortBy === 'floor2_pick_wr' ? '2層Pick勝率' :
+                sortBy === 'floor3_pick_rate' ? '3層Pick率' :
+                sortBy === 'floor3_pick_wr' ? '3層Pick勝率' : ''
+              }</span>
+              <span className="text-xs">▾</span>
+            </button>
+            {sortOpen && (
+              <div className="absolute z-40 mt-1 right-0 w-48 max-h-64 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
+                <div className="mb-2 pb-2 border-b border-slate-800">
+                  <p className="text-[8px] text-slate-400 mb-1">各指標の定義:</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• Pick勝率: ピックしたランの勝率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• Pick率: 提示されたランに対するピック率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• Final勝率: 最終デッキに含まれていたランの勝率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• Final所持率: 提示されたランに対する最終デッキ所持率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• 1層/2層/3層Pick率: 各層での提示に対するピック率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• 1層/2層/3層Pick勝率: 各層でピックしたランの勝率</p>
+                </div>
+                <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'pick_wr' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='pick_wr'} onChange={() => { setSortBy('pick_wr'); setSortOpen(false); }} /> Pick勝率</label>
+                <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'pick_rate' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='pick_rate'} onChange={() => { setSortBy('pick_rate'); setSortOpen(false); }} /> Pick率</label>
+                <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'final_wr' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='final_wr'} onChange={() => { setSortBy('final_wr'); setSortOpen(false); }} /> Final勝率</label>
+                <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'final_rate' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='final_rate'} onChange={() => { setSortBy('final_rate'); setSortOpen(false); }} /> Final所持率</label>
+                <div className="mt-2 pt-2 border-t border-slate-800">
+                  <p className="text-[8px] text-slate-400 mb-1">層ごとの統計:</p>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor1_pick_rate' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor1_pick_rate'} onChange={() => { setSortBy('floor1_pick_rate'); setSortOpen(false); }} /> 1層Pick率</label>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor1_pick_wr' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor1_pick_wr'} onChange={() => { setSortBy('floor1_pick_wr'); setSortOpen(false); }} /> 1層Pick勝率</label>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor2_pick_rate' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor2_pick_rate'} onChange={() => { setSortBy('floor2_pick_rate'); setSortOpen(false); }} /> 2層Pick率</label>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor2_pick_wr' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor2_pick_wr'} onChange={() => { setSortBy('floor2_pick_wr'); setSortOpen(false); }} /> 2層Pick勝率</label>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor3_pick_rate' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor3_pick_rate'} onChange={() => { setSortBy('floor3_pick_rate'); setSortOpen(false); }} /> 3層Pick率</label>
+                  <label className={`flex items-center gap-2 mb-1 cursor-pointer ${sortBy === 'floor3_pick_wr' ? 'text-blue-400' : ''}`}><input type="radio" name="sortBy" checked={sortBy==='floor3_pick_wr'} onChange={() => { setSortBy('floor3_pick_wr'); setSortOpen(false); }} /> 3層Pick勝率</label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <label className="text-[9px] font-bold">バージョン:</label>
@@ -577,7 +680,9 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
       <div className="flex justify-between items-center mb-4">
         <p className="text-[10px] text-slate-500">
-          ※ 累計で3回以上ピックされたカードのみ表示しています。Pick勝率はピックしたランでの勝率、Final勝率は最終デッキに含まれていたランでの勝率です。
+          ※ 累計で3回以上ピックされたカードのみ表示しています。
+          <br/>
+          • Pick: ピックしたラン数 / Win: 勝利回数 / Final: 最終デッキに含まれていたラン数 / Appear: 提示されたラン数（1ランにつき1回カウント）
         </p>
         <p className="text-[10px] text-slate-400">
           対象ラン数: {(() => {
@@ -671,15 +776,52 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
               <div className="p-2 bg-black/30 border-t border-slate-800">
                 <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Win Rate</span>
-                  <span className="text-sm font-mono font-bold text-green-400">{card.wr.toFixed(1)}%</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    {sortBy === 'pick_wr' ? 'Pick Win Rate' :
+                     sortBy === 'pick_rate' ? 'Pick Rate' :
+                     sortBy === 'final_wr' ? 'Final Win Rate' :
+                     sortBy === 'final_rate' ? 'Final Rate' :
+                     sortBy === 'floor1_pick_rate' ? '1層 Pick Rate' :
+                     sortBy === 'floor1_pick_wr' ? '1層 Pick Win Rate' :
+                     sortBy === 'floor2_pick_rate' ? '2層 Pick Rate' :
+                     sortBy === 'floor2_pick_wr' ? '2層 Pick Win Rate' :
+                     sortBy === 'floor3_pick_rate' ? '3層 Pick Rate' :
+                     sortBy === 'floor3_pick_wr' ? '3層 Pick Win Rate' : 'Win Rate'}
+                  </span>
+                  <span className="text-sm font-mono font-bold text-green-400">
+                    {sortBy === 'pick_wr' ? card.pickWr.toFixed(1) :
+                     sortBy === 'pick_rate' ? card.pickRate.toFixed(1) :
+                     sortBy === 'final_wr' ? card.finalWr.toFixed(1) :
+                     sortBy === 'final_rate' ? card.finalRate.toFixed(1) :
+                     sortBy === 'floor1_pick_rate' ? card.floor1PickRate.toFixed(1) :
+                     sortBy === 'floor1_pick_wr' ? card.floor1PickWr.toFixed(1) :
+                     sortBy === 'floor2_pick_rate' ? card.floor2PickRate.toFixed(1) :
+                     sortBy === 'floor2_pick_wr' ? card.floor2PickWr.toFixed(1) :
+                     sortBy === 'floor3_pick_rate' ? card.floor3PickRate.toFixed(1) :
+                     sortBy === 'floor3_pick_wr' ? card.floor3PickWr.toFixed(1) : '0'}%
+                  </span>
                 </div>
                 <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mb-2">
-                  <div className="h-full bg-gradient-to-r from-blue-600 to-green-400 transition-all duration-1000" style={{ width: `${card.wr}%` }} />
+                  <div className="h-full bg-gradient-to-r from-blue-600 to-green-400 transition-all duration-1000" style={{ 
+                    width: `${sortBy === 'pick_wr' ? card.pickWr :
+                            sortBy === 'pick_rate' ? card.pickRate :
+                            sortBy === 'final_wr' ? card.finalWr :
+                            sortBy === 'final_rate' ? card.finalRate :
+                            sortBy === 'floor1_pick_rate' ? card.floor1PickRate :
+                            sortBy === 'floor1_pick_wr' ? card.floor1PickWr :
+                            sortBy === 'floor2_pick_rate' ? card.floor2PickRate :
+                            sortBy === 'floor2_pick_wr' ? card.floor2PickWr :
+                            sortBy === 'floor3_pick_rate' ? card.floor3PickRate :
+                            sortBy === 'floor3_pick_wr' ? card.floor3PickWr : 0}%` 
+                  }} />
                 </div>
                 <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase">
-                  <span>{wrMode === 'picked' ? 'Pick' : 'Final'}: {card.picked}</span>
+                  <span>Pick: {card.picked}</span>
                   <span>Win: {card.wins}</span>
+                </div>
+                <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase mt-1">
+                  <span>Final: {card.final}</span>
+                  <span>Appear: {card.appeared}</span>
                 </div>
               </div>
             </div>

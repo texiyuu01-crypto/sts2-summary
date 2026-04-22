@@ -43,7 +43,11 @@ def analyze():
             "picked_single": 0, "picked_single_wins": 0,
             "picked_multi": 0, "picked_multi_wins": 0,
             "final_count": 0, "final_wins": 0,
-            "appeared": 0, "appeared_single": 0, "appeared_multi": 0
+            "appeared": 0, "appeared_single": 0, "appeared_multi": 0,
+            # 層（act）ごとの統計
+            "floor1_picked": 0, "floor1_picked_wins": 0, "floor1_appeared": 0,
+            "floor2_picked": 0, "floor2_picked_wins": 0, "floor2_appeared": 0,
+            "floor3_picked": 0, "floor3_picked_wins": 0, "floor3_appeared": 0
         }
 
     # サマリ用（母数計算に必須）
@@ -100,6 +104,9 @@ def analyze():
                 except: pass
         return 'A10'
 
+    def get_acts(run_obj):
+        return run_obj.get('acts') or []
+
     unknown_examples = []
     for run in all_runs:
         char = detect_character(run)
@@ -126,25 +133,50 @@ def analyze():
 
         # 2. カードごとの重複排除用セット
         picked_in_run = set()
+        appeared_in_run = set()
         final_in_run = set()
+        # 層ごとの重複排除用セット
+        floor1_picked = set()
+        floor1_appeared = set()
+        floor2_picked = set()
+        floor2_appeared = set()
+        floor3_picked = set()
+        floor3_appeared = set()
 
-        # 提示とピックの集計
-        for act in run.get('map_point_history', []):
+        # 提示とピックの集計（層ごとに追跡）
+        acts = get_acts(run)
+        map_history = run.get('map_point_history', [])
+        for act_idx, act in enumerate(map_history):
+            # act_idx 0 = 1層, 1 = 2層, 2 = 3層
+            floor_key = f"floor{act_idx + 1}"
+            picked_set = None
+            appeared_set = None
+            
+            if act_idx == 0:
+                picked_set = floor1_picked
+                appeared_set = floor1_appeared
+            elif act_idx == 1:
+                picked_set = floor2_picked
+                appeared_set = floor2_appeared
+            elif act_idx == 2:
+                picked_set = floor3_picked
+                appeared_set = floor3_appeared
+            
+            if picked_set is None:
+                continue
+            
             for floor in act:
                 for p_stat in floor.get('player_stats', []):
                     for choice in p_stat.get('card_choices', []):
                         cid = choice.get('card', {}).get('id')
                         if not cid: continue
                         
-                        # 提示(Appeared)は「提示された回数」なので重複して数えても良い（または必要に応じて調整）
-                        # ここでは以前の仕様に合わせ、提示のたびにカウント
-                        target_cards = [stats[char][cid], stats_by_v[version][char][cid], stats_by_a[asc][char][cid], stats_by_va[version][asc][char][cid]]
-                        for node in target_cards:
-                            node["appeared"] += 1
-                            node[f"appeared_{run_type}"] += 1
+                        appeared_in_run.add(cid) # 重複排除のためセットに入れる
+                        appeared_set.add(cid) # 層ごとの重複排除
                         
                         if choice.get('was_picked'):
                             picked_in_run.add(cid) # 重複排除のためセットに入れる
+                            picked_set.add(cid) # 層ごとの重複排除
 
         # デッキ内カードの集計
         for p in players:
@@ -160,6 +192,12 @@ def analyze():
             stats_by_va[version][asc][char]
         ]
 
+        for cid in appeared_in_run:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["appeared"] += 1
+                node[f"appeared_{run_type}"] += 1
+
         for cid in picked_in_run:
             for scope in target_scopes:
                 node = scope[cid]
@@ -167,6 +205,37 @@ def analyze():
                 if is_win: node["picked_wins"] += 1
                 node[f"picked_{run_type}"] += 1
                 if is_win: node[f"picked_{run_type}_wins"] += 1
+
+        # 層ごとの統計を反映
+        for cid in floor1_appeared:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor1_appeared"] += 1
+        for cid in floor1_picked:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor1_picked"] += 1
+                if is_win: node["floor1_picked_wins"] += 1
+
+        for cid in floor2_appeared:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor2_appeared"] += 1
+        for cid in floor2_picked:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor2_picked"] += 1
+                if is_win: node["floor2_picked_wins"] += 1
+
+        for cid in floor3_appeared:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor3_appeared"] += 1
+        for cid in floor3_picked:
+            for scope in target_scopes:
+                node = scope[cid]
+                node["floor3_picked"] += 1
+                if is_win: node["floor3_picked_wins"] += 1
 
         for cid in final_in_run:
             for scope in target_scopes:
