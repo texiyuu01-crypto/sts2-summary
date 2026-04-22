@@ -260,15 +260,15 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
             intersected[char] = {};
             Object.entries(verCards).forEach(([cardId, verStats]: any) => {
               if (ascGroup[char][cardId]) {
-                // Merge stats from both sources (take min for appeared to avoid double counting)
+                // Merge stats from both sources (take min for appeared/picked/final to avoid double counting)
                 const ascStats = ascGroup[char][cardId];
                 const mergedStats: any = { ...verStats };
                 Object.keys(verStats).forEach(key => {
                   const vVal = verStats[key];
                   const aVal = ascStats[key];
                   if (typeof vVal === 'number' && typeof aVal === 'number') {
-                    // For appeared/appeared_single/appeared_multi, take min to avoid double counting
-                    if (key.includes('appeared')) {
+                    // For appeared/picked/final counts, take min to avoid double counting
+                    if (key.includes('appeared') || key.includes('picked') || key.includes('final')) {
                       mergedStats[key] = Math.min(vVal, aVal);
                     } else {
                       mergedStats[key] = vVal; // Use version stats for other fields
