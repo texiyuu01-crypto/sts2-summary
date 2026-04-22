@@ -12,8 +12,8 @@ export default function StatsGridClient() {
   useEffect(() => {
     async function loadData() {
       try {
-        // Load stats data
-        const statsRes = await fetch('/tier_stats.json');
+        // Load stats data from API route
+        const statsRes = await fetch('/api/tier-stats');
         if (!statsRes.ok) throw new Error('Failed to load stats data');
         const stats = await statsRes.json();
         setStatsData(stats);
