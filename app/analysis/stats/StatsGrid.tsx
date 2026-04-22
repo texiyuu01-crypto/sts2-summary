@@ -242,11 +242,22 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       if (Object.keys(merged).length > 0) return merged;
     }
 
-    return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+    // Fallback for single selections (not arrays)
+    if (v !== 'ALL' && a === 'ALL' && !Array.isArray(v)) {
+      return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || {};
+    }
+    if (v === 'ALL' && a !== 'ALL' && !Array.isArray(a)) {
+      return (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+    }
+    
+    // Default to all cards
+    return statsData.cards || {};
   };
 
   const rawChars = Object.keys(resolveCardsSource());
   const chars = Array.from(new Set(rawChars));
+  console.log('Raw chars from resolveCardsSource:', rawChars);
+  console.log('Chars after dedup:', chars);
   // sort chars to match cards page order, others appended
   chars.sort((a, b) => {
     const ia = CHARACTER_ORDER.indexOf(a.toLowerCase());
@@ -256,6 +267,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     if (ib === -1) return -1;
     return ia - ib;
   });
+  console.log('Chars after sort:', chars);
   const [activeChar, setActiveChar] = useState<string>(chars[0] || '');
   const [hovered, setHovered] = useState<any>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
