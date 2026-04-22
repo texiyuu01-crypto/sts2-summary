@@ -251,10 +251,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         return merged;
       }
       
-      // Fallback: if by_version_ascension data is not available, return empty object
+      // Fallback: if by_version_ascension data is not available, return all cards
       // We cannot accurately calculate intersection without proper data
-      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- returning empty');
-      return {};
+      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- falling back to statsData.cards');
+      return statsData.cards || {};
     }
 
     // Fallback for single selections (not arrays)
@@ -269,7 +269,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     return statsData.cards || {};
   };
 
-  const rawChars = Object.keys(resolveCardsSource());
+  const rawChars = Object.keys(statsData.cards || {});
   const chars = Array.from(new Set(rawChars));
   // sort chars to match cards page order, others appended
   chars.sort((a, b) => {
