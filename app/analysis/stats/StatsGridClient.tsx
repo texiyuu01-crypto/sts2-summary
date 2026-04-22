@@ -96,18 +96,18 @@ export default function StatsGridClient() {
 
         // Load by_version_ascension cards data
         for (const version of versions) {
-          for (const char of characters) {
+          for (const ascension of ascensions) {
             try {
-              const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${char}.json`);
+              const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${ascension}.json`);
               if (bvaCardsRes.ok) {
                 const cardsData = await bvaCardsRes.json();
                 if (!byVersionAscensionCards[version]) {
                   byVersionAscensionCards[version] = {};
                 }
-                byVersionAscensionCards[version][char] = cardsData;
+                byVersionAscensionCards[version][ascension] = cardsData;
               }
             } catch (e) {
-              console.warn(`Failed to load by_version_ascension cards for ${version}_${char}:`, e);
+              console.warn(`Failed to load by_version_ascension cards for ${version}_${ascension}:`, e);
             }
           }
         }
