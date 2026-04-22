@@ -38,10 +38,8 @@ jobs:
           # 修正ポイント：
           # 1. 増加した日別JSON（runs_*.json）をすべて追加
           # 2. 更新された統計データ（tier_stats.json）を追加
-          # 3. publicフォルダのtier_stats.jsonも追加（クライアントサイド用）
           git add src/data/runs_*.json
           git add src/data/tier_stats.json
-          git add public/tier_stats.json
           
           git commit -m "Update latest runs data and stats" || exit 0
           git push

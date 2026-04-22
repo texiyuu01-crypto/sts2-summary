@@ -267,14 +267,5 @@ def analyze():
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f"Analysis complete! Saved to {OUTPUT_FILE}")
 
-    # Copy to public folder for client-side access
-    public_output = os.path.join(os.path.dirname(__file__), '../public/tier_stats.json')
-    try:
-        import shutil
-        shutil.copy2(OUTPUT_FILE, public_output)
-        print(f"Also copied to {public_output}")
-    except Exception as e:
-        print(f"Warning: Could not copy to public folder: {e}")
-
 if __name__ == "__main__":
     analyze()
