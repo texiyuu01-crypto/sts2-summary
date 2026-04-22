@@ -84,6 +84,7 @@ export default function StatsGridClient() {
 
         // Load by_version_ascension summary for accurate calculation
         let byVersionAscensionSummary: any = {};
+        let byVersionAscensionCards: any = {};
         try {
           const bvaRes = await fetch('/data/by_version_ascension_summary.json');
           if (bvaRes.ok) {
@@ -91,6 +92,24 @@ export default function StatsGridClient() {
           }
         } catch (e) {
           console.warn('Failed to load by_version_ascension summary:', e);
+        }
+
+        // Load by_version_ascension cards data
+        for (const version of versions) {
+          for (const char of characters) {
+            try {
+              const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${char}.json`);
+              if (bvaCardsRes.ok) {
+                const cardsData = await bvaCardsRes.json();
+                if (!byVersionAscensionCards[version]) {
+                  byVersionAscensionCards[version] = {};
+                }
+                byVersionAscensionCards[version][char] = cardsData;
+              }
+            } catch (e) {
+              console.warn(`Failed to load by_version_ascension cards for ${version}_${char}:`, e);
+            }
+          }
         }
 
         // Load updated_at
@@ -110,7 +129,7 @@ export default function StatsGridClient() {
           cards: cardsSource,
           by_version: { summary: byVersionSummary, cards: byVersionCards },
           by_ascension: { summary: byAscensionSummary, cards: byAscensionCards },
-          by_version_ascension: { summary: byVersionAscensionSummary, cards: {} },
+          by_version_ascension: { summary: byVersionAscensionSummary, cards: byVersionAscensionCards },
           updated_at: updatedAt
         };
         setStatsData(finalData);
