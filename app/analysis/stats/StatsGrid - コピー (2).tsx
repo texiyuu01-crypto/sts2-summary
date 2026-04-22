@@ -251,45 +251,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         return merged;
       }
       
-      // Fallback: if by_version_ascension data is not available, sum by_version and by_ascension data
-      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- summing by_version and by_ascension');
-      const verGroup = resolveVerGroup(v);
-      const ascGroup = resolveAscGroup(a);
-      
-      // Sum both groups (union/OR logic)
-      const summed: Record<string, any> = {};
-      
-      // Add version data
-      if (verGroup) {
-        Object.entries(verGroup).forEach(([char, cards]: any) => {
-          if (!summed[char]) summed[char] = {};
-          Object.entries(cards).forEach(([cardId, stats]: any) => {
-            if (!summed[char][cardId]) summed[char][cardId] = {};
-            Object.entries(stats).forEach(([key, val]: any) => {
-              const num = Number(val);
-              if (!isNaN(num)) summed[char][cardId][key] = (summed[char][cardId][key] || 0) + num;
-              else summed[char][cardId][key] = val;
-            });
-          });
-        });
-      }
-      
-      // Add ascension data
-      if (ascGroup) {
-        Object.entries(ascGroup).forEach(([char, cards]: any) => {
-          if (!summed[char]) summed[char] = {};
-          Object.entries(cards).forEach(([cardId, stats]: any) => {
-            if (!summed[char][cardId]) summed[char][cardId] = {};
-            Object.entries(stats).forEach(([key, val]: any) => {
-              const num = Number(val);
-              if (!isNaN(num)) summed[char][cardId][key] = (summed[char][cardId][key] || 0) + num;
-              else summed[char][cardId][key] = val;
-            });
-          });
-        });
-      }
-      
-      return Object.keys(summed).length > 0 ? summed : statsData.cards || {};
+      // Fallback: if by_version_ascension data is not available, return all cards
+      // We cannot accurately calculate intersection without proper data
+      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- falling back to statsData.cards');
+      return statsData.cards || {};
     }
 
     // Fallback for single selections (not arrays)
@@ -799,7 +764,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               summarySource = mergeSummary(sources);
               console.log('Summary from by_version_ascension:', Object.keys(summarySource));
               
-              // If by_version_ascension.summary is empty, sum by_version.summary and by_ascension.summary
+              // If by_version_ascension.summary is empty, intersect by_version.summary and by_ascension.summary
               if (Object.keys(summarySource).length === 0) {
                 const verSummaries = vArr.map(v => statsData.by_version?.summary?.[v] || {});
                 const ascSummaries = aArr.map(a => statsData.by_ascension?.summary?.[a] || {});
@@ -810,25 +775,67 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 console.log('by_version_ascension.summary available:', !!statsData.by_version_ascension?.summary);
                 console.log('by_version_ascension.summary keys:', statsData.by_version_ascension?.summary ? Object.keys(statsData.by_version_ascension.summary) : 'N/A');
                 
-                // Sum mergedVer and mergedAsc (union/OR logic)
-                const summed: Record<string, any> = {};
+                // For multiple selections, handle differently:
+                // - Single version + Multiple ascensions: Use merged ascension (already summed)
+                // - Multiple versions + Single ascension: Use merged version (already summed)
+                // - Multiple versions + Multiple ascensions: Try to use by_version_ascension data if available
+                const intersected: Record<string, any> = {};
+                const isSingleVersion = vArr.length === 1;
+                const isSingleAscension = aArr.length === 1;
+                console.log('isSingleVersion:', isSingleVersion, 'isSingleAscension:', isSingleAscension);
                 
-                // Add version data
                 Object.keys(mergedVer).forEach(char => {
-                  if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                  summed[char].total_runs_single += mergedVer[char].total_runs_single || 0;
-                  summed[char].total_runs_multi += mergedVer[char].total_runs_multi || 0;
+                  if (mergedAsc[char]) {
+                    if (isSingleVersion && !isSingleAscension) {
+                      // Use merged ascension values directly
+                      intersected[char] = {
+                        total_runs_single: mergedAsc[char].total_runs_single || 0,
+                        total_runs_multi: mergedAsc[char].total_runs_multi || 0
+                      };
+                    } else if (!isSingleVersion && isSingleAscension) {
+                      // Use merged version values directly
+                      intersected[char] = {
+                        total_runs_single: mergedVer[char].total_runs_single || 0,
+                        total_runs_multi: mergedVer[char].total_runs_multi || 0
+                      };
+                    } else if (isSingleVersion && isSingleAscension) {
+                      // Both single: use min to estimate intersection
+                      intersected[char] = {
+                        total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
+                        total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
+                      };
+                    } else {
+                      // Both multiple: try to sum by_version_ascension data if available
+                      let totalSingle = 0;
+                      let totalMulti = 0;
+                      let hasData = false;
+                      vArr.forEach(ver => {
+                        aArr.forEach(asc => {
+                          if (statsData.by_version_ascension?.summary?.[ver]?.[asc]?.[char]) {
+                            const data = statsData.by_version_ascension.summary[ver][asc][char];
+                            totalSingle += data.total_runs_single || 0;
+                            totalMulti += data.total_runs_multi || 0;
+                            hasData = true;
+                          }
+                        });
+                      });
+                      if (hasData) {
+                        intersected[char] = {
+                          total_runs_single: totalSingle,
+                          total_runs_multi: totalMulti
+                        };
+                      } else {
+                        // Fallback: use min as conservative estimate
+                        intersected[char] = {
+                          total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
+                          total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
+                        };
+                      }
+                    }
+                  }
                 });
-                
-                // Add ascension data
-                Object.keys(mergedAsc).forEach(char => {
-                  if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                  summed[char].total_runs_single += mergedAsc[char].total_runs_single || 0;
-                  summed[char].total_runs_multi += mergedAsc[char].total_runs_multi || 0;
-                });
-                
-                console.log('summed summary:', summed);
-                summarySource = summed;
+                console.log('intersected summary:', intersected);
+                summarySource = intersected;
               }
             }
 
