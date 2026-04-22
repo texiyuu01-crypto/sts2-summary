@@ -226,7 +226,9 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
     if (v === 'ALL' && a !== 'ALL') {
       const ascGroup = resolveAscGroup(a);
+      console.log('resolveCardsSource: v=ALL, a=', a, 'ascGroup keys:', ascGroup ? Object.keys(ascGroup) : 'null');
       const result = ascGroup || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+      console.log('resolveCardsSource: result keys:', Object.keys(result));
       return result;
     }
 
