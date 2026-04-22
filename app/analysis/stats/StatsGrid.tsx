@@ -256,8 +256,6 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
   const rawChars = Object.keys(resolveCardsSource());
   const chars = Array.from(new Set(rawChars));
-  console.log('Raw chars from resolveCardsSource:', rawChars);
-  console.log('Chars after dedup:', chars);
   // sort chars to match cards page order, others appended
   chars.sort((a, b) => {
     const ia = CHARACTER_ORDER.indexOf(a.toLowerCase());
@@ -267,7 +265,6 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     if (ib === -1) return -1;
     return ia - ib;
   });
-  console.log('Chars after sort:', chars);
   const [activeChar, setActiveChar] = useState<string>(chars[0] || '');
   const [hovered, setHovered] = useState<any>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
