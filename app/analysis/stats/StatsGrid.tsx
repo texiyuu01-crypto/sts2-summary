@@ -265,45 +265,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         return merged;
       }
       
-      // Fallback: if by_version_ascension data is not available, sum by_version and by_ascension data
-      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- summing by_version and by_ascension');
-      const verGroup = resolveVerGroup(v);
-      const ascGroup = resolveAscGroup(a);
-      
-      // Sum both groups (union/OR logic)
-      const summed: Record<string, any> = {};
-      
-      // Add version data
-      if (verGroup) {
-        Object.entries(verGroup).forEach(([char, cards]: any) => {
-          if (!summed[char]) summed[char] = {};
-          Object.entries(cards).forEach(([cardId, stats]: any) => {
-            if (!summed[char][cardId]) summed[char][cardId] = {};
-            Object.entries(stats).forEach(([key, val]: any) => {
-              const num = Number(val);
-              if (!isNaN(num)) summed[char][cardId][key] = (summed[char][cardId][key] || 0) + num;
-              else summed[char][cardId][key] = val;
-            });
-          });
-        });
-      }
-      
-      // Add ascension data
-      if (ascGroup) {
-        Object.entries(ascGroup).forEach(([char, cards]: any) => {
-          if (!summed[char]) summed[char] = {};
-          Object.entries(cards).forEach(([cardId, stats]: any) => {
-            if (!summed[char][cardId]) summed[char][cardId] = {};
-            Object.entries(stats).forEach(([key, val]: any) => {
-              const num = Number(val);
-              if (!isNaN(num)) summed[char][cardId][key] = (summed[char][cardId][key] || 0) + num;
-              else summed[char][cardId][key] = val;
-            });
-          });
-        });
-      }
-      
-      return Object.keys(summed).length > 0 ? summed : statsData.cards || {};
+      // Fallback: if by_version_ascension data is not available, return all cards
+      // We cannot accurately calculate intersection without proper data
+      console.log('resolveCardsSource: by_version_ascension data not available for', vArr, aArr, '- returning all cards (filtering disabled)');
+      return statsData.cards || {};
     }
 
     // Fallback for single selections (not arrays)
@@ -813,48 +778,11 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               summarySource = mergeSummary(sources);
               console.log('Summary from by_version_ascension:', Object.keys(summarySource));
               
-              // If by_version_ascension.summary is empty, sum by_version.summary and by_ascension.summary
+              // If by_version_ascension.summary is empty, return all data
+              // We cannot accurately calculate intersection without proper data
               if (Object.keys(summarySource).length === 0) {
-                const verSummaries = vArr.map(v => statsData.by_version?.summary?.[v] || {});
-                const ascSummaries = aArr.map(a => statsData.by_ascension?.summary?.[a] || {});
-                const mergedVer = mergeSummary(verSummaries);
-                const mergedAsc = mergeSummary(ascSummaries);
-                console.log('mergedVer:', mergedVer);
-                console.log('mergedAsc:', mergedAsc);
-                console.log('by_version_ascension.summary available:', !!statsData.by_version_ascension?.summary);
-                console.log('by_version_ascension.summary keys:', statsData.by_version_ascension?.summary ? Object.keys(statsData.by_version_ascension.summary) : 'N/A');
-                
-                // If one side is empty (ALL equivalent), use the other side directly
-                if (vArr.length === 0 && aArr.length > 0) {
-                  console.log('Summary: v is ALL, using ascension data only');
-                  summarySource = mergedAsc;
-                } else if (aArr.length === 0 && vArr.length > 0) {
-                  console.log('Summary: a is ALL, using version data only');
-                  summarySource = mergedVer;
-                } else if (vArr.length === 0 && aArr.length === 0) {
-                  console.log('Summary: both are ALL, using all data');
-                  summarySource = statsData.summary || {};
-                } else {
-                  // Sum mergedVer and mergedAsc (union/OR logic)
-                  const summed: Record<string, any> = {};
-                  
-                  // Add version data
-                  Object.keys(mergedVer).forEach(char => {
-                    if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                    summed[char].total_runs_single += mergedVer[char].total_runs_single || 0;
-                    summed[char].total_runs_multi += mergedVer[char].total_runs_multi || 0;
-                  });
-                  
-                  // Add ascension data
-                  Object.keys(mergedAsc).forEach(char => {
-                    if (!summed[char]) summed[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                    summed[char].total_runs_single += mergedAsc[char].total_runs_single || 0;
-                    summed[char].total_runs_multi += mergedAsc[char].total_runs_multi || 0;
-                  });
-                  
-                  console.log('summed summary:', summed);
-                  summarySource = summed;
-                }
+                console.log('Summary: by_version_ascension data not available for', vArr, aArr, '- returning all data (filtering disabled)');
+                summarySource = statsData.summary || {};
               }
             }
 
