@@ -34,6 +34,7 @@ export default function StatsGridClient() {
 
         // Load by_version summary for version selector
         let byVersionSummary: any = {};
+        let byVersionCards: any = {};
         try {
           const bvRes = await fetch('/data/by_version_summary.json');
           if (bvRes.ok) {
@@ -43,8 +44,22 @@ export default function StatsGridClient() {
           console.warn('Failed to load by_version summary:', e);
         }
 
+        // Load by_version cards data
+        const versions = Object.keys(byVersionSummary);
+        for (const version of versions) {
+          try {
+            const bvCardsRes = await fetch(`/data/by_version_cards_${version}.json`);
+            if (bvCardsRes.ok) {
+              byVersionCards[version] = await bvCardsRes.json();
+            }
+          } catch (e) {
+            console.warn(`Failed to load by_version cards for ${version}:`, e);
+          }
+        }
+
         // Load by_ascension summary for ascension selector
         let byAscensionSummary: any = {};
+        let byAscensionCards: any = {};
         try {
           const baRes = await fetch('/data/by_ascension_summary.json');
           if (baRes.ok) {
@@ -52,6 +67,19 @@ export default function StatsGridClient() {
           }
         } catch (e) {
           console.warn('Failed to load by_ascension summary:', e);
+        }
+
+        // Load by_ascension cards data
+        const ascensions = Object.keys(byAscensionSummary);
+        for (const asc of ascensions) {
+          try {
+            const baCardsRes = await fetch(`/data/by_ascension_cards_${asc}.json`);
+            if (baCardsRes.ok) {
+              byAscensionCards[asc] = await baCardsRes.json();
+            }
+          } catch (e) {
+            console.warn(`Failed to load by_ascension cards for ${asc}:`, e);
+          }
         }
 
         // Load updated_at
@@ -69,8 +97,8 @@ export default function StatsGridClient() {
         const finalData = {
           summary,
           cards: cardsSource,
-          by_version: { summary: byVersionSummary, cards: {} },
-          by_ascension: { summary: byAscensionSummary, cards: {} },
+          by_version: { summary: byVersionSummary, cards: byVersionCards },
+          by_ascension: { summary: byAscensionSummary, cards: byAscensionCards },
           by_version_ascension: { summary: {}, cards: {} },
           updated_at: updatedAt
         };
