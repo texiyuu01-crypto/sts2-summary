@@ -790,14 +790,35 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 const mergedVer = mergeSummary(verSummaries);
                 const mergedAsc = mergeSummary(ascSummaries);
                 
-                // Intersect: take min of runs for each character
+                // For multiple selections, handle differently:
+                // - Single version + Multiple ascensions: Use merged ascension (already summed)
+                // - Multiple versions + Single ascension: Use merged version (already summed)
+                // - Multiple versions + Multiple ascensions: Use min to estimate intersection
                 const intersected: Record<string, any> = {};
+                const isSingleVersion = vArr.length === 1;
+                const isSingleAscension = aArr.length === 1;
+                
                 Object.keys(mergedVer).forEach(char => {
                   if (mergedAsc[char]) {
-                    intersected[char] = {
-                      total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
-                      total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
-                    };
+                    if (isSingleVersion && !isSingleAscension) {
+                      // Use merged ascension values directly
+                      intersected[char] = {
+                        total_runs_single: mergedAsc[char].total_runs_single || 0,
+                        total_runs_multi: mergedAsc[char].total_runs_multi || 0
+                      };
+                    } else if (!isSingleVersion && isSingleAscension) {
+                      // Use merged version values directly
+                      intersected[char] = {
+                        total_runs_single: mergedVer[char].total_runs_single || 0,
+                        total_runs_multi: mergedVer[char].total_runs_multi || 0
+                      };
+                    } else {
+                      // Both multiple or both single: use min to estimate intersection
+                      intersected[char] = {
+                        total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
+                        total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
+                      };
+                    }
                   }
                 });
                 summarySource = intersected;
