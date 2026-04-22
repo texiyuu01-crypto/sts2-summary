@@ -19,7 +19,7 @@ export default function StatsGridClient() {
 
         // Load all character card data
         const cardsSource: Record<string, any> = {};
-        const characters = ['ironclad', 'silent', 'defect', 'watcher', 'necrobinder', 'regent'];
+        const characters = ['ironclad', 'silent', 'defect', 'necrobinder', 'regent'];
         
         for (const char of characters) {
           try {
@@ -30,49 +30,6 @@ export default function StatsGridClient() {
           } catch (e) {
             console.warn(`Failed to load data for ${char}:`, e);
           }
-        }
-
-        // Load version and ascension data
-        const byVersionCards: Record<string, any> = {};
-        const byAscensionCards: Record<string, any> = {};
-        const byVersionAscensionCards: Record<string, Record<string, any>> = {};
-
-        try {
-          const bvRes = await fetch('/data/by_version_summary.json');
-          if (bvRes.ok) {
-            const bvSummary = await bvRes.json();
-            for (const char of characters) {
-              try {
-                const charRes = await fetch(`/data/by_version_cards_${char}.json`);
-                if (charRes.ok) {
-                  byVersionCards[char] = await charRes.json();
-                }
-              } catch (e) {
-                console.warn(`Failed to load by_version data for ${char}:`, e);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to load by_version data:', e);
-        }
-
-        try {
-          const baRes = await fetch('/data/by_ascension_summary.json');
-          if (baRes.ok) {
-            const baSummary = await baRes.json();
-            for (const char of characters) {
-              try {
-                const charRes = await fetch(`/data/by_ascension_cards_${char}.json`);
-                if (charRes.ok) {
-                  byAscensionCards[char] = await charRes.json();
-                }
-              } catch (e) {
-                console.warn(`Failed to load by_ascension data for ${char}:`, e);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to load by_ascension data:', e);
         }
 
         // Load updated_at
@@ -90,9 +47,9 @@ export default function StatsGridClient() {
         setStatsData({
           summary,
           cards: cardsSource,
-          by_version: { summary: {}, cards: byVersionCards },
-          by_ascension: { summary: {}, cards: byAscensionCards },
-          by_version_ascension: { summary: {}, cards: byVersionAscensionCards },
+          by_version: { summary: {}, cards: {} },
+          by_ascension: { summary: {}, cards: {} },
+          by_version_ascension: { summary: {}, cards: {} },
           updated_at: updatedAt
         });
 
