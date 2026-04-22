@@ -39,6 +39,7 @@ export default function StatsGridClient() {
           const bvRes = await fetch('/data/by_version_summary.json');
           if (bvRes.ok) {
             byVersionSummary = await bvRes.json();
+            console.log('by_version summary loaded:', Object.keys(byVersionSummary));
           }
         } catch (e) {
           console.warn('Failed to load by_version summary:', e);
@@ -46,16 +47,22 @@ export default function StatsGridClient() {
 
         // Load by_version cards data
         const versions = Object.keys(byVersionSummary);
+        console.log('Loading by_version cards for versions:', versions);
         for (const version of versions) {
           try {
             const bvCardsRes = await fetch(`/data/by_version_cards_${version}.json`);
+            console.log(`Fetching /data/by_version_cards_${version}.json, status:`, bvCardsRes.status);
             if (bvCardsRes.ok) {
               byVersionCards[version] = await bvCardsRes.json();
+              console.log(`Loaded by_version_cards_${version}.json`);
+            } else {
+              console.warn(`Failed to load by_version cards for ${version}: status ${bvCardsRes.status}`);
             }
           } catch (e) {
             console.warn(`Failed to load by_version cards for ${version}:`, e);
           }
         }
+        console.log('by_version cards loaded:', Object.keys(byVersionCards));
 
         // Load by_ascension summary for ascension selector
         let byAscensionSummary: any = {};
@@ -64,6 +71,7 @@ export default function StatsGridClient() {
           const baRes = await fetch('/data/by_ascension_summary.json');
           if (baRes.ok) {
             byAscensionSummary = await baRes.json();
+            console.log('by_ascension summary loaded:', Object.keys(byAscensionSummary));
           }
         } catch (e) {
           console.warn('Failed to load by_ascension summary:', e);
@@ -71,16 +79,22 @@ export default function StatsGridClient() {
 
         // Load by_ascension cards data
         const ascensions = Object.keys(byAscensionSummary);
+        console.log('Loading by_ascension cards for ascensions:', ascensions);
         for (const asc of ascensions) {
           try {
             const baCardsRes = await fetch(`/data/by_ascension_cards_${asc}.json`);
+            console.log(`Fetching /data/by_ascension_cards_${asc}.json, status:`, baCardsRes.status);
             if (baCardsRes.ok) {
               byAscensionCards[asc] = await baCardsRes.json();
+              console.log(`Loaded by_ascension_cards_${asc}.json`);
+            } else {
+              console.warn(`Failed to load by_ascension cards for ${asc}: status ${baCardsRes.status}`);
             }
           } catch (e) {
             console.warn(`Failed to load by_ascension cards for ${asc}:`, e);
           }
         }
+        console.log('by_ascension cards loaded:', Object.keys(byAscensionCards));
 
         // Load updated_at
         let updatedAt = '';
