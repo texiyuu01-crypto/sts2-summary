@@ -641,7 +641,24 @@ export default function CardsPage() {
       cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-30%)`; } catch (e) {} });
 
       // html2canvas 実行（DPR を考慮した scale）
-      const canvas = await html2canvas(clone, { backgroundColor: '#020617', useCORS: true, scale: Math.max(1, DPR), width: 1024 });
+      const canvas = await html2canvas(clone, { 
+        backgroundColor: '#020617', 
+        useCORS: true, 
+        scale: Math.max(1, DPR), 
+        width: 1024,
+        onclone: (clonedDoc) => {
+          // lab()色関数を含むスタイルを無効化してデフォルト色にフォールバック
+          clonedDoc.querySelectorAll('*').forEach((el: any) => {
+            const cs = getComputedStyle(el);
+            if (cs.color && cs.color.includes('lab(')) {
+              el.style.color = '#ffffff';
+            }
+            if (cs.backgroundColor && cs.backgroundColor.includes('lab(')) {
+              el.style.backgroundColor = '#020617';
+            }
+          });
+        }
+      });
 
       // クローン削除と復元
       document.body.removeChild(clone);
