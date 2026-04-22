@@ -73,7 +73,7 @@ export default function StatsGridClient() {
         const ascensions = Object.keys(byAscensionSummary);
         for (const asc of ascensions) {
           try {
-            const baCardsRes = await fetch(`/data/by_ascension_cards_${asc}.json`);
+            const baCardsRes = await fetch(`/data/by_ascension_cards_${asc.toLowerCase()}.json`);
             if (baCardsRes.ok) {
               byAscensionCards[asc] = await baCardsRes.json();
             }
