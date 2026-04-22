@@ -177,6 +177,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const resolveCardsSource = (version?: string[] | 'ALL', asc?: string[] | 'ALL') => {
     const v = version ?? selectedVersion;
     const a = asc ?? selectedAscension;
+    console.log('resolveCardsSource called with v:', v, 'a:', a);
     // helper to merge multiple group objects (char->card->stats)
     const mergeGroups = (groups: any[]) => {
       const out: Record<string, any> = {};
@@ -198,13 +199,17 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     };
 
     // handle ALL selection
-    if (v === 'ALL' && a === 'ALL') return statsData.cards || {};
+    if (v === 'ALL' && a === 'ALL') {
+      console.log('Returning all cards from statsData.cards');
+      return statsData.cards || {};
+    }
 
     // if ascension is array (multiple) merge corresponding ascension groups
     const resolveAscGroup = (ascSel: string[] | 'ALL') => {
       if (ascSel === 'ALL') return null;
       const arr = Array.isArray(ascSel) ? ascSel : [ascSel];
       const groups = arr.map(x => (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[x]) || {});
+      console.log('resolveAscGroup for', arr, 'groups:', groups.map(g => g ? Object.keys(g) : 'null'));
       return mergeGroups(groups);
     };
 
@@ -213,23 +218,34 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       if (verSel === 'ALL') return null;
       const arr = Array.isArray(verSel) ? verSel : [verSel];
       const groups = arr.map(x => (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[x]) || {});
+      console.log('resolveVerGroup for', arr, 'groups:', groups.map(g => g ? Object.keys(g) : 'null'));
       return mergeGroups(groups);
     };
 
     if (v !== 'ALL' && a === 'ALL') {
+      console.log('Path: version only');
       const verGroup = resolveVerGroup(v);
-      return verGroup || (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || {};
+      const result = verGroup || (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || {};
+      console.log('Result keys:', Object.keys(result));
+      return result;
     }
 
     if (v === 'ALL' && a !== 'ALL') {
+      console.log('Path: ascension only');
       const ascGroup = resolveAscGroup(a);
-      return ascGroup || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+      const result = ascGroup || (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
+      console.log('Result keys:', Object.keys(result));
+      return result;
     }
 
-    // both specified: merge from by_version_ascension if available, otherwise fallback
+    // both specified: merge from by_version_ascension if available, otherwise intersect by_version and by_ascension
     if (v !== 'ALL' && a !== 'ALL') {
+      console.log('Path: both version and ascension specified');
       const vArr = Array.isArray(v) ? v : [v];
       const aArr = Array.isArray(a) ? a : [a];
+      console.log('vArr:', vArr, 'aArr:', aArr);
+      
+      // First try by_version_ascension
       const groups: any[] = [];
       vArr.forEach(ver => {
         aArr.forEach(asc => {
@@ -238,19 +254,65 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
           }
         });
       });
+      console.log('Groups from by_version_ascension:', groups.length);
       const merged = mergeGroups(groups);
-      if (Object.keys(merged).length > 0) return merged;
+      if (Object.keys(merged).length > 0) {
+        console.log('Returning merged from by_version_ascension');
+        return merged;
+      }
+      
+      // Fallback: intersect by_version and by_ascension data
+      console.log('by_version_ascension not available, intersecting by_version and by_ascension');
+      const verGroup = resolveVerGroup(v);
+      const ascGroup = resolveAscGroup(a);
+      
+      if (verGroup && ascGroup) {
+        console.log('Intersecting version and ascension groups');
+        const intersected: Record<string, any> = {};
+        Object.entries(verGroup).forEach(([char, verCards]: any) => {
+          if (ascGroup[char]) {
+            intersected[char] = {};
+            Object.entries(verCards).forEach(([cardId, verStats]: any) => {
+              if (ascGroup[char][cardId]) {
+                // Merge stats from both sources (take min for appeared to avoid double counting)
+                const ascStats = ascGroup[char][cardId];
+                const mergedStats: any = { ...verStats };
+                Object.keys(verStats).forEach(key => {
+                  const vVal = verStats[key];
+                  const aVal = ascStats[key];
+                  if (typeof vVal === 'number' && typeof aVal === 'number') {
+                    // For appeared/appeared_single/appeared_multi, take min to avoid double counting
+                    if (key.includes('appeared')) {
+                      mergedStats[key] = Math.min(vVal, aVal);
+                    } else {
+                      mergedStats[key] = vVal; // Use version stats for other fields
+                    }
+                  }
+                });
+                intersected[char][cardId] = mergedStats;
+              }
+            });
+          }
+        });
+        console.log('Intersected result keys:', Object.keys(intersected));
+        if (Object.keys(intersected).length > 0) {
+          return intersected;
+        }
+      }
     }
 
     // Fallback for single selections (not arrays)
     if (v !== 'ALL' && a === 'ALL' && !Array.isArray(v)) {
+      console.log('Fallback: single version selection');
       return (statsData.by_version && statsData.by_version.cards && statsData.by_version.cards[v as any]) || {};
     }
     if (v === 'ALL' && a !== 'ALL' && !Array.isArray(a)) {
+      console.log('Fallback: single ascension selection');
       return (statsData.by_ascension && statsData.by_ascension.cards && statsData.by_ascension.cards[a as any]) || {};
     }
     
     // Default to all cards
+    console.log('Default: returning all cards');
     return statsData.cards || {};
   };
 
