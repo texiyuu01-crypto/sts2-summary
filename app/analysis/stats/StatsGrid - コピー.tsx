@@ -280,10 +280,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     if (ib === -1) return -1;
     return ia - ib;
   });
-  // Initialize activeChar from statsData.cards to ensure it's always set
-  const availableChars = Object.keys(statsData.cards || {});
-  const initialChar = availableChars.length > 0 ? availableChars[0] : '';
-  const [activeChar, setActiveChar] = useState<string>(initialChar);
+  const [activeChar, setActiveChar] = useState<string>(chars[0] || '');
   const [hovered, setHovered] = useState<any>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const tooltipRef = useRef<HTMLDivElement | null>(null);
@@ -440,12 +437,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
   const getList = () => {
     // get merged cards source using resolveCardsSource (supports multiple ascension selection)
-    let cardsSource = resolveCardsSource();
-    // Fallback to statsData.cards if resolveCardsSource returns empty
-    if (!cardsSource || Object.keys(cardsSource).length === 0) {
-      console.log('getList: resolveCardsSource returned empty, falling back to statsData.cards');
-      cardsSource = statsData.cards || {};
-    }
+    const cardsSource = resolveCardsSource();
     const pickCountsFrom = (st: any) => {
       // Get metrics based on run type
       if (runType === 'single') {
