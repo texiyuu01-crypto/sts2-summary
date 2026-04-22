@@ -773,6 +773,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               // both specified
               const vArr = Array.isArray(selectedVersion) ? selectedVersion : [selectedVersion];
               const aArr = Array.isArray(selectedAscension) ? selectedAscension : [selectedAscension];
+              console.log('Summary calculation: vArr:', vArr, 'aArr:', aArr);
               const sources: any[] = [];
               vArr.forEach(ver => {
                 aArr.forEach(asc => {
@@ -782,6 +783,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 });
               });
               summarySource = mergeSummary(sources);
+              console.log('Summary from by_version_ascension:', Object.keys(summarySource));
               
               // If by_version_ascension.summary is empty, intersect by_version.summary and by_ascension.summary
               if (Object.keys(summarySource).length === 0) {
@@ -789,14 +791,17 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 const ascSummaries = aArr.map(a => statsData.by_ascension?.summary?.[a] || {});
                 const mergedVer = mergeSummary(verSummaries);
                 const mergedAsc = mergeSummary(ascSummaries);
+                console.log('mergedVer:', mergedVer);
+                console.log('mergedAsc:', mergedAsc);
                 
                 // For multiple selections, handle differently:
                 // - Single version + Multiple ascensions: Use merged ascension (already summed)
                 // - Multiple versions + Single ascension: Use merged version (already summed)
-                // - Multiple versions + Multiple ascensions: Use min to estimate intersection
+                // - Multiple versions + Multiple ascensions: Estimate using average of merged values
                 const intersected: Record<string, any> = {};
                 const isSingleVersion = vArr.length === 1;
                 const isSingleAscension = aArr.length === 1;
+                console.log('isSingleVersion:', isSingleVersion, 'isSingleAscension:', isSingleAscension);
                 
                 Object.keys(mergedVer).forEach(char => {
                   if (mergedAsc[char]) {
@@ -812,15 +817,28 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                         total_runs_single: mergedVer[char].total_runs_single || 0,
                         total_runs_multi: mergedVer[char].total_runs_multi || 0
                       };
-                    } else {
-                      // Both multiple or both single: use min to estimate intersection
+                    } else if (isSingleVersion && isSingleAscension) {
+                      // Both single: use min to estimate intersection
                       intersected[char] = {
                         total_runs_single: Math.min(mergedVer[char].total_runs_single || 0, mergedAsc[char].total_runs_single || 0),
                         total_runs_multi: Math.min(mergedVer[char].total_runs_multi || 0, mergedAsc[char].total_runs_multi || 0)
                       };
+                    } else {
+                      // Both multiple: estimate using average of the two merged values
+                      // This is a rough estimate since we don't have by_version_ascension data
+                      const verRuns = mergedVer[char].total_runs_single || 0;
+                      const ascRuns = mergedAsc[char].total_runs_single || 0;
+                      const verRunsMulti = mergedVer[char].total_runs_multi || 0;
+                      const ascRunsMulti = mergedAsc[char].total_runs_multi || 0;
+                      // Use average as a reasonable estimate
+                      intersected[char] = {
+                        total_runs_single: (verRuns + ascRuns) / 2,
+                        total_runs_multi: (verRunsMulti + ascRunsMulti) / 2
+                      };
                     }
                   }
                 });
+                console.log('intersected summary:', intersected);
                 summarySource = intersected;
               }
             }
