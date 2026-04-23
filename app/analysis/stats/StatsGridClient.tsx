@@ -94,9 +94,10 @@ export default function StatsGridClient() {
           console.warn('Failed to load by_version_ascension summary:', e);
         }
 
-        // Load by_version_ascension cards data
-        for (const version of versions) {
-          for (const ascension of ascensions) {
+        // Load by_version_ascension cards data (only for combinations that exist in summary)
+        for (const version of Object.keys(byVersionAscensionSummary)) {
+          const versionData = byVersionAscensionSummary[version];
+          for (const ascension of Object.keys(versionData)) {
             try {
               const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${ascension}.json`);
               if (bvaCardsRes.ok) {
