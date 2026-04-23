@@ -47,4 +47,5 @@ jobs:
           git add public/data/*.json
           
           git commit -m "Update latest runs data and stats" || exit 0
+          git pull --rebase origin main
           git push
