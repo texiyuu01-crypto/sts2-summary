@@ -497,53 +497,29 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       }
     };
     // cardsSource already resolved above
-    if (activeChar === 'ALL') {
-      const map: Record<string, any> = {};
-      Object.values(cardsSource).forEach((group: any) => {
-        Object.entries(group).forEach(([id, st]: any) => {
-          const counts = pickCountsFrom(st);
-          if (!map[id]) map[id] = { ...st, picked: counts.picked, wins: counts.wins, appeared: counts.appeared, final: counts.final, finalWins: counts.finalWins, floor1Picked: counts.floor1Picked, floor1PickedWins: counts.floor1PickedWins, floor1Appeared: counts.floor1Appeared, floor2Picked: counts.floor2Picked, floor2PickedWins: counts.floor2PickedWins, floor2Appeared: counts.floor2Appeared, floor3Picked: counts.floor3Picked, floor3PickedWins: counts.floor3PickedWins, floor3Appeared: counts.floor3Appeared };
-          else { map[id].picked += counts.picked; map[id].wins += counts.wins; map[id].appeared += counts.appeared; map[id].final += counts.final; map[id].finalWins += counts.finalWins; map[id].floor1Picked += counts.floor1Picked; map[id].floor1PickedWins += counts.floor1PickedWins; map[id].floor1Appeared += counts.floor1Appeared; map[id].floor2Picked += counts.floor2Picked; map[id].floor2PickedWins += counts.floor2PickedWins; map[id].floor2Appeared += counts.floor2Appeared; map[id].floor3Picked += counts.floor3Picked; map[id].floor3PickedWins += counts.floor3PickedWins; map[id].floor3Appeared += counts.floor3Appeared; }
-        });
-      });
-      return Object.entries(map).map(([id, st]: any) => ({ 
-        id, 
-        ...st, 
-        pickWr: st.picked ? (st.wins / st.picked) * 100 : 0,
-        pickRate: st.appeared ? (st.picked / st.appeared) * 100 : 0,
-        finalWr: st.final ? (st.finalWins / st.final) * 100 : 0,
-        finalRate: st.appeared ? (st.final / st.appeared) * 100 : 0,
-        floor1PickRate: st.floor1Appeared ? (st.floor1Picked / st.floor1Appeared) * 100 : 0,
-        floor1PickWr: st.floor1Picked ? (st.floor1PickedWins / st.floor1Picked) * 100 : 0,
-        floor2PickRate: st.floor2Appeared ? (st.floor2Picked / st.floor2Appeared) * 100 : 0,
-        floor2PickWr: st.floor2Picked ? (st.floor2PickedWins / st.floor2Picked) * 100 : 0,
-        floor3PickRate: st.floor3Appeared ? (st.floor3Picked / st.floor3Appeared) * 100 : 0,
-        floor3PickWr: st.floor3Picked ? (st.floor3PickedWins / st.floor3Picked) * 100 : 0
-      }));
-    }
-    const group = cardsSource[activeChar] || {};
-    return Object.entries(group).map(([id, st]: any) => {
-      const counts = pickCountsFrom(st);
-      return ({ 
-        id, 
-        ...st, 
-        picked: counts.picked, 
-        wins: counts.wins, 
-        appeared: counts.appeared,
-        final: counts.final,
-        finalWins: counts.finalWins,
-        pickWr: counts.picked ? (counts.wins / counts.picked) * 100 : 0,
-        pickRate: counts.appeared ? (counts.picked / counts.appeared) * 100 : 0,
-        finalWr: counts.final ? (counts.finalWins / counts.final) * 100 : 0,
-        finalRate: counts.appeared ? (counts.final / counts.appeared) * 100 : 0,
-        floor1PickRate: counts.floor1Appeared ? (counts.floor1Picked / counts.floor1Appeared) * 100 : 0,
-        floor1PickWr: counts.floor1Picked ? (counts.floor1PickedWins / counts.floor1Picked) * 100 : 0,
-        floor2PickRate: counts.floor2Appeared ? (counts.floor2Picked / counts.floor2Appeared) * 100 : 0,
-        floor2PickWr: counts.floor2Picked ? (counts.floor2PickedWins / counts.floor2Picked) * 100 : 0,
-        floor3PickRate: counts.floor3Appeared ? (counts.floor3Picked / counts.floor3Appeared) * 100 : 0,
-        floor3PickWr: counts.floor3Picked ? (counts.floor3PickedWins / counts.floor3Picked) * 100 : 0
+    // Always return all characters' cards, filtering will be done later
+    const map: Record<string, any> = {};
+    Object.values(cardsSource).forEach((group: any) => {
+      Object.entries(group).forEach(([id, st]: any) => {
+        const counts = pickCountsFrom(st);
+        if (!map[id]) map[id] = { ...st, picked: counts.picked, wins: counts.wins, appeared: counts.appeared, final: counts.final, finalWins: counts.finalWins, floor1Picked: counts.floor1Picked, floor1PickedWins: counts.floor1PickedWins, floor1Appeared: counts.floor1Appeared, floor2Picked: counts.floor2Picked, floor2PickedWins: counts.floor2PickedWins, floor2Appeared: counts.floor2Appeared, floor3Picked: counts.floor3Picked, floor3PickedWins: counts.floor3PickedWins, floor3Appeared: counts.floor3Appeared };
+        else { map[id].picked += counts.picked; map[id].wins += counts.wins; map[id].appeared += counts.appeared; map[id].final += counts.final; map[id].finalWins += counts.finalWins; map[id].floor1Picked += counts.floor1Picked; map[id].floor1PickedWins += counts.floor1PickedWins; map[id].floor1Appeared += counts.floor1Appeared; map[id].floor2Picked += counts.floor2Picked; map[id].floor2PickedWins += counts.floor2PickedWins; map[id].floor2Appeared += counts.floor2Appeared; map[id].floor3Picked += counts.floor3Picked; map[id].floor3PickedWins += counts.floor3PickedWins; map[id].floor3Appeared += counts.floor3Appeared }
       });
     });
+    return Object.entries(map).map(([id, st]: any) => ({ 
+      id, 
+      ...st, 
+      pickWr: st.picked ? (st.wins / st.picked) * 100 : 0,
+      pickRate: st.appeared ? (st.picked / st.appeared) * 100 : 0,
+      finalWr: st.final ? (st.finalWins / st.final) * 100 : 0,
+      finalRate: st.appeared ? (st.final / st.appeared) * 100 : 0,
+      floor1PickRate: st.floor1Appeared ? (st.floor1Picked / st.floor1Appeared) * 100 : 0,
+      floor1PickWr: st.floor1Picked ? (st.floor1PickedWins / st.floor1Picked) * 100 : 0,
+      floor2PickRate: st.floor2Appeared ? (st.floor2Picked / st.floor2Appeared) * 100 : 0,
+      floor2PickWr: st.floor2Picked ? (st.floor2PickedWins / st.floor2Picked) * 100 : 0,
+      floor3PickRate: st.floor3Appeared ? (st.floor3Picked / st.floor3Appeared) * 100 : 0,
+      floor3PickWr: st.floor3Picked ? (st.floor3PickedWins / st.floor3Picked) * 100 : 0
+    }));
   };
 
   let list = getList().filter((c: any) => c.picked >= 3);
