@@ -20,7 +20,7 @@ export default function TierPage() {
             <span className="text-blue-500">Tier Statistics</span>
           </h1>
           <p className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-            Data Source: Spire Codex
+            Data Source: Spire Codex <span className="text-[9px] text-slate-600 ml-2">(Updated: <UpdatedAtDisplay />)</span>
           </p>
         </header>
 
@@ -28,4 +28,17 @@ export default function TierPage() {
       </div>
     </main>
   );
+}
+
+function UpdatedAtDisplay() {
+  const [updatedAt, setUpdatedAt] = React.useState<string>('Loading...');
+
+  React.useEffect(() => {
+    fetch('/data/updated_at.json')
+      .then(res => res.json())
+      .then(data => setUpdatedAt(data.updated_at || 'N/A'))
+      .catch(() => setUpdatedAt('N/A'));
+  }, []);
+
+  return <span>{updatedAt}</span>;
 }
