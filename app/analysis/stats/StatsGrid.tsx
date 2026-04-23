@@ -496,6 +496,60 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         return { picked, wins, appeared, final, finalWins, floor1Picked, floor1PickedWins, floor1Appeared, floor2Picked, floor2PickedWins, floor2Appeared, floor3Picked, floor3PickedWins, floor3Appeared };
       }
     };
+
+    // Calculate total runs for final rate calculation
+    const mergeSummary = (sources: any[]) => {
+      const merged: Record<string, any> = {};
+      sources.forEach(src => {
+        if (!src) return;
+        Object.entries(src).forEach(([char, data]: any) => {
+          if (!merged[char]) merged[char] = { total_runs_single: 0, total_runs_multi: 0 };
+          merged[char].total_runs_single += data.total_runs_single || 0;
+          merged[char].total_runs_multi += data.total_runs_multi || 0;
+        });
+      });
+      return merged;
+    };
+
+    let summarySource: any;
+    if (selectedVersion === 'ALL' && selectedAscension === 'ALL') {
+      summarySource = statsData.summary;
+    } else if (selectedVersion !== 'ALL' && selectedAscension === 'ALL') {
+      if (Array.isArray(selectedVersion)) {
+        const sources = selectedVersion.map(v => statsData.by_version?.summary?.[v] || {});
+        summarySource = mergeSummary(sources);
+      } else {
+        summarySource = statsData.by_version?.summary?.[selectedVersion as any] || {};
+      }
+    } else if (selectedVersion === 'ALL' && selectedAscension !== 'ALL') {
+      if (Array.isArray(selectedAscension)) {
+        const sources = selectedAscension.map(a => statsData.by_ascension?.summary?.[a] || {});
+        summarySource = mergeSummary(sources);
+      } else {
+        summarySource = statsData.by_ascension?.summary?.[selectedAscension as any] || {};
+      }
+    } else {
+      // both specified
+      const vArr = Array.isArray(selectedVersion) ? selectedVersion : [selectedVersion];
+      const aArr = Array.isArray(selectedAscension) ? selectedAscension : [selectedAscension];
+      const sources: any[] = [];
+      vArr.forEach(ver => {
+        aArr.forEach(asc => {
+          if (statsData.by_version_ascension?.summary?.[ver]?.[asc]) {
+            sources.push(statsData.by_version_ascension.summary[ver][asc]);
+          }
+        });
+      });
+      summarySource = mergeSummary(sources);
+      if (Object.keys(summarySource).length === 0) {
+        summarySource = statsData.summary || {};
+      }
+    }
+
+    const totalRuns = activeChar === 'ALL'
+      ? Object.values(summarySource).reduce((sum: number, char: any) => sum + (runType === 'single' ? char.total_runs_single : char.total_runs_multi), 0)
+      : (summarySource[activeChar] ? (runType === 'single' ? summarySource[activeChar].total_runs_single : summarySource[activeChar].total_runs_multi) : 0);
+
     // cardsSource already resolved above
     // Always return all characters' cards, filtering will be done later
     const map: Record<string, any> = {};
@@ -512,7 +566,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       pickWr: st.picked ? (st.wins / st.picked) * 100 : 0,
       pickRate: st.appeared ? (st.picked / st.appeared) * 100 : 0,
       finalWr: st.final ? (st.finalWins / st.final) * 100 : 0,
-      finalRate: st.appeared ? (st.final / st.appeared) * 100 : 0,
+      finalRate: totalRuns ? (st.final / totalRuns) * 100 : 0,
       floor1PickRate: st.floor1Appeared ? (st.floor1Picked / st.floor1Appeared) * 100 : 0,
       floor1PickWr: st.floor1Picked ? (st.floor1PickedWins / st.floor1Picked) * 100 : 0,
       floor2PickRate: st.floor2Appeared ? (st.floor2Picked / st.floor2Appeared) * 100 : 0,
