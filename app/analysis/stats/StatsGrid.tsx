@@ -541,14 +541,16 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         });
       });
       summarySource = mergeSummary(sources);
-      if (Object.keys(summarySource).length === 0) {
-        summarySource = statsData.summary || {};
-      }
     }
 
     const totalRuns = activeChar === 'ALL'
       ? Object.values(summarySource).reduce((sum: number, char: any) => sum + (runType === 'single' ? char.total_runs_single : char.total_runs_multi), 0)
       : (summarySource[activeChar] ? (runType === 'single' ? summarySource[activeChar].total_runs_single : summarySource[activeChar].total_runs_multi) : 0);
+
+    // If no runs match the filter, return empty list
+    if (totalRuns === 0) {
+      return [];
+    }
 
     // cardsSource already resolved above
     // Always return all characters' cards, filtering will be done later
