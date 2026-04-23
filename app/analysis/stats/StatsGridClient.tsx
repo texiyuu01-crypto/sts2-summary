@@ -168,5 +168,5 @@ export default function StatsGridClient() {
     );
   }
 
-  return <StatsGrid statsData={statsData} cardInfoMap={cardInfoMap} />;
+  return <StatsGrid statsData={statsData} cardInfoMap={cardInfoMap} updatedAt={statsData?.updated_at} />;
 }

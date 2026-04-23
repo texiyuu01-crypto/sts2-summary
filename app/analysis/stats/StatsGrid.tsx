@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
+import html2canvas from 'html2canvas';
+import Link from 'next/link';
 
 const getCostParts = (card: any, isUpgraded: boolean = false): { text: string; isStar: boolean } => {
   if (!card) return { text: '', isStar: false };
@@ -113,7 +115,7 @@ const parseDescription = (card: any, isUpgraded: boolean = false) => {
 };
 
 const formatImageUrl = (url: string | undefined) => {
-  if (!url) return 'https://spire-codex.com/assets/images/card_back_regent.png';
+  if (!url) return '';
   if (url.startsWith('/')) return `https://spire-codex.com${url}`;
   return url.startsWith('http') ? url : `https://spire-codex.com/static/images/cards/${url}`;
 };
@@ -166,7 +168,15 @@ const StarCostDiamond = ({ starCost, isXStarCost, size = 'small' }: { starCost?:
 
 const CHARACTER_ORDER = ["ironclad", "silent", "regent", "necrobinder", "defect"];
 
-export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, cardInfoMap: Record<string, any> }) {
+const TIER_ROWS = [
+  { id: 'S', color: '#ff1f1f', label: 'S' },
+  { id: 'A', color: '#ff8c00', label: 'A' },
+  { id: 'B', color: '#ffd700', label: 'B' },
+  { id: 'C', color: '#32cd32', label: 'C' },
+  { id: 'D', color: '#1e90ff', label: 'D' },
+];
+
+export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { statsData: any, cardInfoMap: Record<string, any>, updatedAt?: string }) {
   const [versions, setVersions] = useState<string[]>([]);
   const [ascensions, setAscensions] = useState<string[]>([]);
   // allow multiple version selections: 'ALL' or string[] of choices
@@ -313,6 +323,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const [ascOpen, setAscOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'pick_wr'|'pick_rate'|'final_wr'|'final_rate'|'floor1_pick_rate'|'floor1_pick_wr'|'floor2_pick_rate'|'floor2_pick_wr'|'floor3_pick_rate'|'floor3_pick_wr'>('pick_rate');
+  const [isExporting, setIsExporting] = useState(false);
+  const tierExportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setActiveChar((prev) => {
@@ -633,8 +645,255 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
     });
   }
 
+  // Distribute cards into tiers based on percentages
+  const distributeCardsToTiers = (cards: any[]) => {
+    const total = cards.length;
+    if (total === 0) return { S: [], A: [], B: [], C: [], D: [] };
+    
+    const sCount = Math.ceil(total * 0.10);
+    const aCount = Math.ceil(total * 0.20);
+    const bCount = Math.ceil(total * 0.40);
+    const cCount = Math.ceil(total * 0.20);
+    const dCount = total - sCount - aCount - bCount - cCount;
+    
+    return {
+      S: cards.slice(0, sCount),
+      A: cards.slice(sCount, sCount + aCount),
+      B: cards.slice(sCount + aCount, sCount + aCount + bCount),
+      C: cards.slice(sCount + aCount + bCount, sCount + aCount + bCount + cCount),
+      D: cards.slice(sCount + aCount + bCount + cCount),
+    };
+  };
+
+  // Calculate tier data from filtered list (after all filtering is complete)
+  const tierData = distributeCardsToTiers(list);
+
+  const exportTierPNG = async () => {
+    setHovered(null);
+    setIsExporting(true);
+    
+    // Wait for the hidden tier list to be rendered
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    if (!tierExportRef.current) {
+      setIsExporting(false);
+      return;
+    }
+
+    const DPR = Math.max(1, window.devicePixelRatio || 1);
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+    try { await Promise.race([(document as any).fonts.ready, wait(150)]); } catch (e) {}
+    
+    // Add error handlers to original images before cloning
+    const originalImgs = Array.from(tierExportRef.current.querySelectorAll('img')) as HTMLImageElement[];
+    originalImgs.forEach(img => {
+      img.onerror = () => { /* Ignore errors */ };
+    });
+    
+    const imgs = Array.from(tierExportRef.current.querySelectorAll('img')) as HTMLImageElement[];
+    const imgLoadWithTimeout = (img: HTMLImageElement, timeout = 300) => new Promise(r => {
+      if (img.complete) return r(null);
+      let done = false;
+      const fin = () => { if (done) return; done = true; r(null); };
+      img.onload = fin; img.onerror = fin;
+      setTimeout(fin, timeout);
+    });
+    const imgPromises = imgs.map(img => imgLoadWithTimeout(img, 300));
+    await Promise.all(imgPromises);
+
+    const clone = tierExportRef.current.cloneNode(true) as HTMLElement;
+    
+    // Add error handler to ignore image loading errors
+    clone.querySelectorAll('img').forEach((img: any) => {
+      img.onerror = () => { /* Ignore errors */ };
+    });
+    clone.style.width = '1024px';
+    clone.style.transform = 'none';
+    clone.style.position = 'fixed';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.zIndex = '99999';
+    document.body.appendChild(clone);
+
+    const originalAllLoaded = imgs.every(i => i.complete);
+    if (!originalAllLoaded) {
+      const cImgs = Array.from(clone.querySelectorAll('img')) as HTMLImageElement[];
+      const cPromises = cImgs.map(img => imgLoadWithTimeout(img, 300));
+      await Promise.all(cPromises);
+    }
+
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    await new Promise(resolve => setTimeout(resolve, 150));
+
+    clone.querySelectorAll('*').forEach((el: any) => {
+      try {
+        const cs = getComputedStyle(el);
+        if (!cs) return;
+        if (cs.borderStyle && cs.borderStyle !== 'none') {
+          el.style.borderLeftWidth = cs.borderLeftWidth;
+          el.style.borderRightWidth = cs.borderRightWidth;
+          el.style.borderTopWidth = cs.borderTopWidth;
+          el.style.borderBottomWidth = cs.borderBottomWidth;
+          el.style.borderStyle = cs.borderStyle;
+          el.style.borderColor = cs.borderColor;
+          el.style.boxSizing = 'border-box';
+        }
+        const skipTransform = el.classList && (el.classList.contains('cost-text') || el.classList.contains('cost-badge'));
+        if (!skipTransform && cs.transform && cs.transform !== 'none') el.style.transform = 'none';
+        el.style.padding = cs.padding;
+        el.style.margin = cs.margin;
+      } catch (e) {}
+    });
+
+    clone.querySelectorAll('img').forEach((img: any) => {
+      try {
+        const r = img.getBoundingClientRect();
+        if (r.width && r.height) {
+          img.style.width = `${Math.round(r.width)}px`;
+          img.style.height = `${Math.round(r.height)}px`;
+          img.style.maxWidth = 'none';
+        }
+      } catch (e) {}
+    });
+
+    clone.querySelectorAll('svg').forEach((svg: any) => {
+      try {
+        const rect = svg.getBoundingClientRect();
+        const vb = svg.viewBox && svg.viewBox.baseVal ? svg.viewBox.baseVal : null;
+        if (vb && rect.width && vb.width) {
+          const scale = rect.width / vb.width;
+          svg.querySelectorAll('[stroke-width]').forEach((p: any) => {
+            const orig = parseFloat(p.getAttribute('stroke-width') || '1');
+            p.setAttribute('stroke-width', String(Math.max(1, orig * scale)));
+            p.setAttribute('vector-effect', 'non-scaling-stroke');
+          });
+        } else {
+          svg.querySelectorAll('[stroke-width]').forEach((p: any) => p.setAttribute('vector-effect', 'non-scaling-stroke'));
+        }
+        if (!svg.getAttribute('width') && rect.width) svg.setAttribute('width', String(Math.round(rect.width)));
+        if (!svg.getAttribute('height') && rect.height) svg.setAttribute('height', String(Math.round(rect.height)));
+      } catch (e) {}
+    });
+
+    clone.querySelectorAll('.cost-badge').forEach((badge: any) => {
+      try {
+        const r = badge.getBoundingClientRect();
+        if (r.width && r.height) {
+          badge.style.width = `${Math.round(r.width)}px`;
+          badge.style.height = `${Math.round(r.height)}px`;
+          badge.style.display = 'flex';
+          badge.style.alignItems = 'center';
+          badge.style.justifyContent = 'center';
+        }
+        const span = badge.querySelector('.cost-text');
+        if (span) {
+          try {
+            const cs = getComputedStyle(span);
+            span.style.transform = cs.transform || '';
+          } catch (e) {
+            span.style.transform = '';
+          }
+          span.style.display = 'block';
+          if (r.height) span.style.lineHeight = `${Math.round(r.height)}px`;
+          span.style.padding = '0';
+        }
+      } catch (e) {}
+    });
+
+    const cloneCostEls = Array.from(clone.querySelectorAll('.cost-text')) as HTMLElement[];
+    const clonePrev = cloneCostEls.map(el => el.style.transform || '');
+    try {
+      cloneCostEls.forEach(el => { try { el.style.transform = `${el.style.transform || ''} translateY(-30%)`; } catch (e) {} });
+
+      const canvas = await html2canvas(clone, { 
+        backgroundColor: '#020617', 
+        useCORS: true, 
+        scale: Math.max(1, DPR), 
+        width: 1024,
+        onclone: (clonedDoc) => {
+          // Replace all lab() color functions with fallback colors
+          clonedDoc.querySelectorAll('*').forEach((el: any) => {
+            try {
+              const cs = getComputedStyle(el);
+              
+              // Handle color property
+              if (cs.color) {
+                const colorStr = cs.color;
+                if (colorStr.includes('lab(') || colorStr.includes('oklab(')) {
+                  // Try to preserve lightness approximation
+                  el.style.color = '#ffffff';
+                }
+              }
+              
+              // Handle backgroundColor property
+              if (cs.backgroundColor) {
+                const bgColorStr = cs.backgroundColor;
+                if (bgColorStr.includes('lab(') || bgColorStr.includes('oklab(')) {
+                  // Dark background fallback
+                  el.style.backgroundColor = '#020617';
+                }
+              }
+              
+              // Handle borderColor property
+              if (cs.borderColor) {
+                const borderColorStr = cs.borderColor;
+                if (borderColorStr.includes('lab(') || borderColorStr.includes('oklab(')) {
+                  el.style.borderColor = '#1e293b';
+                }
+              }
+              
+              // Handle other color-related properties
+              ['borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 
+               'outlineColor', 'textDecorationColor', 'boxShadow'].forEach(prop => {
+                const propValue = cs[prop as any];
+                if (propValue && (propValue.includes('lab(') || propValue.includes('oklab('))) {
+                  el.style[prop as any] = 'transparent';
+                }
+              });
+            } catch (e) {
+              // Ignore errors for individual elements
+            }
+          });
+        }
+      });
+
+      document.body.removeChild(clone);
+      setIsExporting(false);
+
+      const link = document.createElement('a');
+      link.download = `STS-Tier-Stats.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } finally {
+      clonePrev.forEach((val, i) => { try { if (cloneCostEls[i]) cloneCostEls[i].style.transform = val; } catch (e) {} });
+      try { if (document.body.contains(clone)) document.body.removeChild(clone); } catch (e) {}
+      setIsExporting(false);
+    }
+  };
+
+  // If a specific character tab is active, filter list to that character's cards or colorless/common cards
+  if (activeChar !== 'ALL') {
+    const allowedColorNames = new Set(['colorless', 'neutral', 'all', 'none', 'common', 'shared']);
+    const norm = (s: any) => (typeof s === 'string' ? s.replace('CHARACTER.', '').replace('character.', '').toLowerCase() : '');
+    list = list.filter((c: any) => {
+      const api = cardInfoMap[c.id];
+      if (!api) return true; // keep if no metadata
+      const color = norm(api.color || api.colour || api.class || api.character || api.type);
+      const isColorless = allowedColorNames.has(color) || color === 'colorless' || color === 'neutral';
+      const isSameChar = color === activeChar.toLowerCase();
+      if (isSameChar) return true;
+      if (isColorless && includeColorless) return true;
+      if (!isSameChar && includeOtherChar) return true;
+      return false;
+    });
+  }
+
   return (
     <div>
+      <nav className="max-w-7xl mx-auto mb-6 flex justify-between items-center">
+        <Link href="/" className="text-[10px] font-black text-[#64748b] hover:text-[#60a5fa] uppercase tracking-widest">← Return</Link>
+      </nav>
+
       <div className="mb-4 overflow-x-auto text-center">
         <div className="inline-flex gap-1.5 p-1 bg-[#0f172a] rounded-sm border border-[#ffffff1a]">
           {chars.map((ch) => (
@@ -777,25 +1036,26 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
       </div>
 
       <div className="flex justify-between items-center mb-4">
-        <p className="text-[10px] text-slate-500">
-          ※ 各指標の分母が3以上のカードのみ表示しています。
-          <br/>
-          • Pick: ピックしたラン数 / Win: ピックしたランの勝利回数 / Final: 最終デッキに含まれていたラン数 / FinalWin: 最終デッキに含まれていたランの勝利回数 / Appear: 提示されたラン数（1ランにつき1回カウント）
-        </p>
-        <p className="text-[10px] text-slate-400">
-          対象ラン数: {(() => {
-            const mergeSummary = (sources: any[]) => {
-              const merged: Record<string, any> = {};
-              sources.forEach(src => {
-                if (!src) return;
-                Object.entries(src).forEach(([char, data]: any) => {
-                  if (!merged[char]) merged[char] = { total_runs_single: 0, total_runs_multi: 0 };
-                  merged[char].total_runs_single += data.total_runs_single || 0;
-                  merged[char].total_runs_multi += data.total_runs_multi || 0;
+        <div>
+          <p className="text-[10px] text-slate-500">
+            ※ 各指標の分母が3以上のカードのみ表示しています。
+            <br/>
+            • Pick: ピックしたラン数 / Win: ピックしたランの勝利回数 / Final: 最終デッキに含まれていたラン数 / FinalWin: 最終デッキに含まれていたランの勝利回数 / Appear: 提示されたラン数（1ランにつき1回カウント）
+          </p>
+          <p className="text-[10px] text-slate-400 mt-1">
+            対象ラン数: {(() => {
+              const mergeSummary = (sources: any[]) => {
+                const merged: Record<string, any> = {};
+                sources.forEach(src => {
+                  if (!src) return;
+                  Object.entries(src).forEach(([char, data]: any) => {
+                    if (!merged[char]) merged[char] = { total_runs_single: 0, total_runs_multi: 0 };
+                    merged[char].total_runs_single += data.total_runs_single || 0;
+                    merged[char].total_runs_multi += data.total_runs_multi || 0;
+                  });
                 });
-              });
-              return merged;
-            };
+                return merged;
+              };
 
             let summarySource: any;
             if (selectedVersion === 'ALL' && selectedAscension === 'ALL') {
@@ -842,6 +1102,14 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
             return charData ? (runType === 'single' ? charData.total_runs_single : charData.total_runs_multi) : 0;
           })()}
         </p>
+        </div>
+        <button 
+          onClick={(e) => { e.stopPropagation(); exportTierPNG(); }}
+          disabled={isExporting || list.length === 0}
+          className="text-[9px] font-black text-[#60a5fa] border border-[#3b82f64d] px-3 py-1 rounded-sm uppercase hover:bg-[#3b82f61a] disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isExporting ? 'Exporting...' : 'Tier PNG'}
+        </button>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
@@ -866,7 +1134,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               }}>
               <div className="relative aspect-[1/1.32] w-full flex flex-col pointer-events-none overflow-hidden">
                 <div className="w-full aspect-square relative bg-[#0f172a] border border-[#ffffff0d] flex items-center justify-center">
-                  <img src={formatImageUrl(image)} alt={api?.name || card.id} className="w-full h-full object-contain" />
+                  {image && <img src={formatImageUrl(image)} alt={api?.name || card.id} className="w-full h-full object-contain" />}
                   <div className="cost-badge absolute top-1 left-1 z-30 w-4.5 h-4.5 bg-[#000000cc] border border-[#ffffff4d] rounded-full flex items-center justify-center">
                     <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '9px' }}>{costParts.isStar ? `★${costParts.text}` : costParts.text}</span>
                   </div>
@@ -987,6 +1255,141 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 </div>
               );
             })()}
+
+      {/* Hidden tier list for PNG export - only rendered during export */}
+      {isExporting && (
+        <div ref={tierExportRef} className="fixed left-[-9999px] top-0 w-[1024px] bg-[#020617] border border-[#1e293b] rounded-sm overflow-hidden">
+        <div className="p-3 border-b border-[#1e293b] bg-[#0d0d12]">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-[#cbd5e1]">
+            <span className="text-[#60a5fa]">{charactersMeta[activeChar]?.name || activeChar}</span>
+            <span className="text-slate-500">|</span>
+            <span>Ver: {selectedVersion === 'ALL' ? 'ALL' : (Array.isArray(selectedVersion) ? selectedVersion.join(',') : selectedVersion)}</span>
+            <span className="text-slate-500">|</span>
+            <span>Asc: {selectedAscension === 'ALL' ? 'ALL' : (Array.isArray(selectedAscension) ? selectedAscension.join(',') : selectedAscension)}</span>
+            <span className="text-slate-500">|</span>
+            <span>Type: {runType === 'single' ? 'Single' : 'Multi'}</span>
+            <span className="text-slate-500">|</span>
+            <span>Sort: {
+              sortBy === 'pick_wr' ? 'Pick勝率' :
+              sortBy === 'pick_rate' ? 'Pick率' :
+              sortBy === 'final_wr' ? 'Final勝率' :
+              sortBy === 'final_rate' ? 'Final所持率' :
+              sortBy === 'floor1_pick_rate' ? '1層Pick率' :
+              sortBy === 'floor1_pick_wr' ? '1層Pick勝率' :
+              sortBy === 'floor2_pick_rate' ? '2層Pick率' :
+              sortBy === 'floor2_pick_wr' ? '2層Pick勝率' :
+              sortBy === 'floor3_pick_rate' ? '3層Pick率' :
+              sortBy === 'floor3_pick_wr' ? '3層Pick勝率' : sortBy
+            }</span>
+            {includeColorless && <span className="text-blue-400">+無色</span>}
+            {includeOtherChar && <span className="text-blue-400">+他キャラ</span>}
+          </div>
+          <div className="text-[9px] text-slate-500 mt-1">
+            データ取得日時: {updatedAt ? new Date(updatedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'N/A'} | 対象ラン数: {(() => {
+              const mergeSummary = (sources: any[]) => {
+                const merged: Record<string, any> = {};
+                sources.forEach(src => {
+                  if (!src) return;
+                  Object.entries(src).forEach(([char, data]: any) => {
+                    if (!merged[char]) merged[char] = { total_runs_single: 0, total_runs_multi: 0 };
+                    merged[char].total_runs_single += data.total_runs_single || 0;
+                    merged[char].total_runs_multi += data.total_runs_multi || 0;
+                  });
+                });
+                return merged;
+              };
+
+              let summarySource: any;
+              if (selectedVersion === 'ALL' && selectedAscension === 'ALL') {
+                summarySource = statsData.summary;
+              } else if (selectedVersion !== 'ALL' && selectedAscension === 'ALL') {
+                if (Array.isArray(selectedVersion)) {
+                  const sources = selectedVersion.map(v => statsData.by_version?.summary?.[v] || {});
+                  summarySource = mergeSummary(sources);
+                } else {
+                  summarySource = statsData.by_version?.summary?.[selectedVersion as any] || {};
+                }
+              } else if (selectedVersion === 'ALL' && selectedAscension !== 'ALL') {
+                if (Array.isArray(selectedAscension)) {
+                  const sources = selectedAscension.map(a => statsData.by_ascension?.summary?.[a] || {});
+                  summarySource = mergeSummary(sources);
+                } else {
+                  summarySource = statsData.by_ascension?.summary?.[selectedAscension as any] || {};
+                }
+              } else {
+                const vArr = Array.isArray(selectedVersion) ? selectedVersion : [selectedVersion];
+                const aArr = Array.isArray(selectedAscension) ? selectedAscension : [selectedAscension];
+                const sources: any[] = [];
+                vArr.forEach(ver => {
+                  aArr.forEach(asc => {
+                    if (statsData.by_version_ascension?.summary?.[ver]?.[asc]) {
+                      sources.push(statsData.by_version_ascension.summary[ver][asc]);
+                    }
+                  });
+                });
+                summarySource = mergeSummary(sources);
+                if (Object.keys(summarySource).length === 0) {
+                  summarySource = statsData.summary || {};
+                }
+              }
+
+              if (activeChar === 'ALL') {
+                return Object.values(summarySource).reduce((sum: number, char: any) => sum + (runType === 'single' ? char.total_runs_single : char.total_runs_multi), 0);
+              }
+              const charData = summarySource[activeChar];
+              return charData ? (runType === 'single' ? charData.total_runs_single : charData.total_runs_multi) : 0;
+            })()} | 対象カード数: {list.length}
+          </div>
+        </div>
+        <div className="flex flex-col">
+          {TIER_ROWS.map(tier => (
+            <div key={tier.id} className="flex border-b border-[#1e293b] min-h-[105px] bg-[#0d0d12]">
+              <div style={{ backgroundColor: tier.color }} className="w-20 flex items-center justify-center shrink-0 border-r border-[#000000]">
+                <span className="text-xl font-black text-[#000000]">{tier.label}</span>
+              </div>
+              <div className="flex-1 p-3 flex flex-wrap gap-x-2 gap-y-6 content-start">
+                {tierData[tier.id as keyof typeof tierData].map((card: any) => {
+                  const api = cardInfoMap[card.id];
+                  const image = api?.image_url || api?.image || '';
+                  const color = getRarityColor(api?.rarity || '');
+                  const costParts = getCostParts(api, false);
+                  const imageUrl = formatImageUrl(image);
+                  return (
+                    <div key={card.id} className="relative w-16 h-[95px] flex flex-col">
+                      <div className="relative w-full h-full overflow-hidden flex flex-col">
+                        <div className="w-full aspect-square relative bg-[#1a1a24] shrink-0">
+                          {imageUrl && imageUrl !== '' && (
+                            <img 
+                              src={imageUrl} 
+                              alt="" 
+                              className="w-full h-full object-contain" 
+                              crossOrigin="anonymous"
+                              onError={() => { /* Ignore errors */ }}
+                            />
+                          )}
+                          <div className="cost-badge absolute top-0.5 left-0.5 z-30 w-4.5 h-4.5 bg-[#000000cc] rounded-full border border-[#ffffff4d] flex items-center justify-center overflow-hidden">
+                            <span className="cost-text font-black italic block text-center" style={{ color, fontSize: '9px', width: '100%', lineHeight: '1', transform: 'translateY(0.5px)' }}>
+                              {costParts.isStar ? `★${costParts.text}` : costParts.text}
+                            </span>
+                          </div>
+                          <StarCostDiamond starCost={api?.star_cost} isXStarCost={api?.is_x_star_cost} size="small" />
+                        </div>
+                        <div className="flex-1 flex items-start justify-center px-0.5 pt-1 z-20 overflow-visible relative">
+                          <p className="card-name-text font-bold text-[#ffffff] text-center uppercase break-words w-full" style={{ fontSize: '7.5px', lineHeight: '1.1', display: 'block', minHeight: '2.4em' }}>
+                            {api?.name || card.id.replace('CARD.', '')}
+                          </p>
+                        </div>
+                        <CardFrameStroke type={api?.type} color={color} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ export default function TierPage() {
 
       <div className="max-w-7xl mx-auto">
         <header className="mb-8 border-b border-slate-800 pb-6">
-          <h1 className="text-3xl font-black italic tracking-tighter text-white uppercase leading-none">
+          <h1 className="text-xl md:text-3xl font-black italic tracking-tighter text-white uppercase leading-none">
             Slay the Spire 2 <br/>
             <span className="text-blue-500">Tier Statistics</span>
           </h1>
