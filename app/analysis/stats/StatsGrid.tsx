@@ -583,13 +583,13 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   if (sortBy === 'final_wr' || sortBy === 'final_rate') {
     list = list.filter((c: any) => c.final >= 3);
   } else if (sortBy === 'floor1_pick_rate' || sortBy === 'floor1_pick_wr') {
-    list = list.filter((c: any) => c.floor1Picked >= 3);
+    list = list.filter((c: any) => c.floor1Appeared >= 3);
   } else if (sortBy === 'floor2_pick_rate' || sortBy === 'floor2_pick_wr') {
-    list = list.filter((c: any) => c.floor2Picked >= 3);
+    list = list.filter((c: any) => c.floor2Appeared >= 3);
   } else if (sortBy === 'floor3_pick_rate' || sortBy === 'floor3_pick_wr') {
-    list = list.filter((c: any) => c.floor3Picked >= 3);
+    list = list.filter((c: any) => c.floor3Appeared >= 3);
   } else {
-    list = list.filter((c: any) => c.picked >= 3);
+    list = list.filter((c: any) => c.appeared >= 3);
   }
 
   // Sort based on selected criteria
@@ -671,7 +671,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               <span className="text-xs">▾</span>
             </button>
             {sortOpen && (
-              <div className="absolute z-40 mt-1 right-0 w-48 max-h-64 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
+              <div className="absolute z-40 mt-1 right-0 md:right-0 left-0 md:left-auto w-48 max-h-64 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
                 <div className="mb-2 pb-2 border-b border-slate-800">
                   <p className="text-[8px] text-slate-400 mb-1">各指標の定義:</p>
                   <p className="text-[8px] text-slate-500 leading-tight">• Pick勝率: ピックしたランの勝率</p>
@@ -708,7 +708,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               <span className="text-xs">▾</span>
             </button>
             {verOpen && (
-              <div className="absolute z-40 mt-1 right-0 w-40 max-h-48 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
+              <div className="absolute z-40 mt-1 right-0 md:right-0 left-0 md:left-auto w-40 max-h-48 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
                 <label className="flex items-center gap-2 mb-1"><input type="checkbox" checked={selectedVersion === 'ALL'} onChange={(e) => { if (e.target.checked) setSelectedVersion('ALL'); else setSelectedVersion([]); }} /> 全て</label>
                 {versions.filter(v => v !== 'ALL').map(v => {
                   const checked = selectedVersion === 'ALL' ? false : (Array.isArray(selectedVersion) ? selectedVersion.includes(v) : false);
@@ -741,7 +741,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               <span className="text-xs">▾</span>
             </button>
             {ascOpen && (
-              <div className="absolute z-40 mt-1 right-0 w-40 max-h-48 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
+              <div className="absolute z-40 mt-1 right-0 md:right-0 left-0 md:left-auto w-40 max-h-48 overflow-auto bg-[#02111b] border border-[#ffffff1a] p-2 rounded-sm shadow-lg">
                 <label className="flex items-center gap-2 mb-1"><input type="checkbox" checked={selectedAscension === 'ALL'} onChange={(e) => { if (e.target.checked) setSelectedAscension('ALL'); else setSelectedAscension([]); }} /> 全て</label>
                 {ascensions.filter(a => a !== 'ALL').map(a => {
                   const checked = selectedAscension === 'ALL' ? false : (Array.isArray(selectedAscension) ? selectedAscension.includes(a) : false);
@@ -770,7 +770,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
 
       <div className="flex justify-between items-center mb-4">
         <p className="text-[10px] text-slate-500">
-          ※ 累計で3回以上ピックされたカードのみ表示しています。
+          ※ 各指標の分母が3以上のカードのみ表示しています。
           <br/>
           • Pick: ピックしたラン数 / Win: ピックしたランの勝利回数 / Final: 最終デッキに含まれていたラン数 / FinalWin: 最終デッキに含まれていたランの勝利回数 / Appear: 提示されたラン数（1ランにつき1回カウント）
         </p>
