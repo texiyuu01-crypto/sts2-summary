@@ -466,8 +466,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         const picked = st.picked_single ?? st.picked_count ?? 0;
         const wins = st.picked_single_wins ?? st.picked_wins ?? 0;
         const appeared = st.appeared_single ?? st.appeared ?? 0;
-        const final = st.final_count ?? 0;
-        const finalWins = st.final_wins ?? 0;
+        const final = st.final_single ?? st.final_count ?? 0;
+        const finalWins = st.final_single_wins ?? st.final_wins ?? 0;
         const floor1Picked = st.floor1_picked ?? 0;
         const floor1PickedWins = st.floor1_picked_wins ?? 0;
         const floor1Appeared = st.floor1_appeared ?? 0;
@@ -482,8 +482,8 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         const picked = st.picked_multi ?? 0;
         const wins = st.picked_multi_wins ?? 0;
         const appeared = st.appeared_multi ?? 0;
-        const final = st.final_count ?? 0;
-        const finalWins = st.final_wins ?? 0;
+        const final = st.final_multi ?? st.final_count ?? 0;
+        const finalWins = st.final_multi_wins ?? st.final_wins ?? 0;
         const floor1Picked = st.floor1_picked ?? 0;
         const floor1PickedWins = st.floor1_picked_wins ?? 0;
         const floor1Appeared = st.floor1_appeared ?? 0;
