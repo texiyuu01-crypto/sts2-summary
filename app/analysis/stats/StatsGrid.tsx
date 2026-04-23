@@ -808,7 +808,6 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
               // both specified
               const vArr = Array.isArray(selectedVersion) ? selectedVersion : [selectedVersion];
               const aArr = Array.isArray(selectedAscension) ? selectedAscension : [selectedAscension];
-              console.log('Summary calculation: vArr:', vArr, 'aArr:', aArr);
               const sources: any[] = [];
               vArr.forEach(ver => {
                 aArr.forEach(asc => {
@@ -818,12 +817,10 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 });
               });
               summarySource = mergeSummary(sources);
-              console.log('Summary from by_version_ascension:', Object.keys(summarySource));
-              
+
               // If by_version_ascension.summary is empty, return all data
               // We cannot accurately calculate intersection without proper data
               if (Object.keys(summarySource).length === 0) {
-                console.log('Summary: by_version_ascension data not available for', vArr, aArr, '- returning all data (filtering disabled)');
                 summarySource = statsData.summary || {};
               }
             }
