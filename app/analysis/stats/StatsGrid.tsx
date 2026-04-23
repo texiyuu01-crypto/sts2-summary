@@ -832,7 +832,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
             }
             const charData = summarySource[activeChar];
             return charData ? (runType === 'single' ? charData.total_runs_single : charData.total_runs_multi) : 0;
-          })()}
+          })()} | 更新日時: {statsData.updated_at || 'N/A'}
         </p>
       </div>
 
