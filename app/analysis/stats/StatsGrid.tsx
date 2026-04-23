@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from 'react';
+import { toPng } from 'html-to-image';
 
 const getCostParts = (card: any, isUpgraded: boolean = false): { text: string; isStar: boolean } => {
   if (!card) return { text: '', isStar: false };
@@ -616,6 +617,60 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   const sortKey = sortKeyMap[sortBy];
   list = list.sort((a: any, b: any) => b[sortKey] - a[sortKey]);
 
+  // Tier calculation logic
+  const calculateTiers = (sortedList: any[]) => {
+    const total = sortedList.length;
+    const tiers: Record<string, any[]> = { S: [], A: [], B: [], C: [], D: [] };
+    
+    const sBoundary = Math.floor(total * 0.10);
+    const aBoundary = Math.floor(total * 0.30); // 10% + 20%
+    const bBoundary = Math.floor(total * 0.70); // 10% + 20% + 40%
+    const cBoundary = Math.floor(total * 0.90); // 10% + 20% + 40% + 20%
+    
+    sortedList.forEach((card, index) => {
+      if (index < sBoundary) {
+        tiers.S.push(card);
+      } else if (index < aBoundary) {
+        tiers.A.push(card);
+      } else if (index < bBoundary) {
+        tiers.B.push(card);
+      } else if (index < cBoundary) {
+        tiers.C.push(card);
+      } else {
+        tiers.D.push(card);
+      }
+    });
+    
+    return tiers;
+  };
+
+  const tiers = calculateTiers(list);
+
+  const tierTableRef = useRef<HTMLDivElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generateTierTablePNG = async () => {
+    if (!tierTableRef.current) return;
+    setIsGenerating(true);
+    try {
+      const dataUrl = await toPng(tierTableRef.current, {
+        width: tierTableRef.current.offsetWidth * 2,
+        height: tierTableRef.current.offsetHeight * 2,
+        style: {
+          transform: 'scale(2)',
+          transformOrigin: 'top left',
+        },
+      });
+      const link = document.createElement('a');
+      link.download = `tier_table_${sortBy}_${activeChar}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error('Failed to generate PNG:', error);
+    }
+    setIsGenerating(false);
+  };
+
   // If a specific character tab is active, filter list to that character's cards or colorless/common cards
   if (activeChar !== 'ALL') {
     const allowedColorNames = new Set(['colorless', 'neutral', 'all', 'none', 'common', 'shared']);
@@ -776,6 +831,16 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         </div>
       </div>
 
+      <div className="mb-3 flex justify-end">
+        <button 
+          onClick={generateTierTablePNG}
+          disabled={isGenerating || list.length === 0}
+          className="text-[9px] px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-sm text-white font-bold"
+        >
+          {isGenerating ? '生成中...' : 'Tier表PNG生成'}
+        </button>
+      </div>
+
       <div className="flex justify-between items-center mb-4">
         <p className="text-[10px] text-slate-500">
           ※ 各指標の分母が3以上のカードのみ表示しています。
@@ -842,6 +907,46 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
             return charData ? (runType === 'single' ? charData.total_runs_single : charData.total_runs_multi) : 0;
           })()}
         </p>
+      </div>
+
+      {/* Hidden tier table for PNG generation */}
+      <div ref={tierTableRef} className="hidden">
+        <div style={{ backgroundColor: '#0f172a', padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+          <h2 style={{ color: '#fff', fontSize: '24px', marginBottom: '10px', textAlign: 'center' }}>
+            Tier Table - {sortBy === 'pick_wr' ? 'Pick勝率' : sortBy === 'pick_rate' ? 'Pick率' : sortBy === 'final_wr' ? 'Final勝率' : sortBy === 'final_rate' ? 'Final所持率' : sortBy === 'floor1_pick_rate' ? '1層Pick率' : sortBy === 'floor1_pick_wr' ? '1層Pick勝率' : sortBy === 'floor2_pick_rate' ? '2層Pick率' : sortBy === 'floor2_pick_wr' ? '2層Pick勝率' : sortBy === 'floor3_pick_rate' ? '3層Pick率' : sortBy === 'floor3_pick_wr' ? '3層Pick勝率' : ''}
+          </h2>
+          <p style={{ color: '#94a3b8', fontSize: '12px', marginBottom: '20px', textAlign: 'center' }}>
+            Character: {activeChar} | Version: {selectedVersion === 'ALL' ? 'All' : String(selectedVersion)} | Ascension: {selectedAscension === 'ALL' ? 'All' : String(selectedAscension)}
+          </p>
+          {(['S', 'A', 'B', 'C', 'D'] as const).map((tier) => (
+            <div key={tier} style={{ marginBottom: '20px' }}>
+              <div style={{ 
+                backgroundColor: tier === 'S' ? '#fbbf24' : tier === 'A' ? '#a855f7' : tier === 'B' ? '#3b82f6' : tier === 'C' ? '#22c55e' : '#ef4444',
+                color: '#000', 
+                fontSize: '18px', 
+                fontWeight: 'bold', 
+                padding: '5px 10px', 
+                marginBottom: '10px',
+                width: '50px',
+                textAlign: 'center',
+                borderRadius: '4px'
+              }}>
+                {tier}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                {tiers[tier].map((card: any) => {
+                  const api = cardInfoMap[card.id];
+                  const image = api?.image_url || api?.image || '';
+                  return (
+                    <div key={card.id} style={{ width: '60px', height: '84px', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '4px', overflow: 'hidden' }}>
+                      {image ? <img src={formatImageUrl(image)} alt={api?.name || card.id} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2">
