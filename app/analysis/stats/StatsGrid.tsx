@@ -918,6 +918,9 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                 </div>
                 <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase mt-1">
                   <span>Final: {card.final}</span>
+                  <span>FinalWin: {card.finalWins}</span>
+                </div>
+                <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase mt-1">
                   <span>Appear: {card.appeared}</span>
                 </div>
               </div>
