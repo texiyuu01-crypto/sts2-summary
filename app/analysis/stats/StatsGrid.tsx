@@ -675,7 +675,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
                   <p className="text-[8px] text-slate-500 leading-tight">• Pick勝率: ピックしたランの勝率</p>
                   <p className="text-[8px] text-slate-500 leading-tight">• Pick率: 提示されたランに対するピック率</p>
                   <p className="text-[8px] text-slate-500 leading-tight">• Final勝率: 最終デッキに含まれていたランの勝率</p>
-                  <p className="text-[8px] text-slate-500 leading-tight">• Final所持率: 提示されたランに対する最終デッキ所持率</p>
+                  <p className="text-[8px] text-slate-500 leading-tight">• Final所持率: 総ラン数に対する最終デッキ所持率</p>
                   <p className="text-[8px] text-slate-500 leading-tight">• 1層/2層/3層Pick率: 各層での提示に対するピック率</p>
                   <p className="text-[8px] text-slate-500 leading-tight">• 1層/2層/3層Pick勝率: 各層でピックしたランの勝率</p>
                 </div>
@@ -770,7 +770,7 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
         <p className="text-[10px] text-slate-500">
           ※ 累計で3回以上ピックされたカードのみ表示しています。
           <br/>
-          • Pick: ピックしたラン数 / Win: 勝利回数 / Final: 最終デッキに含まれていたラン数 / Appear: 提示されたラン数（1ランにつき1回カウント）
+          • Pick: ピックしたラン数 / Win: ピックしたランの勝利回数 / Final: 最終デッキに含まれていたラン数 / FinalWin: 最終デッキに含まれていたランの勝利回数 / Appear: 提示されたラン数（1ランにつき1回カウント）
         </p>
         <p className="text-[10px] text-slate-400">
           対象ラン数: {(() => {
