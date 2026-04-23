@@ -582,12 +582,20 @@ export default function StatsGrid({ statsData, cardInfoMap }: { statsData: any, 
   let list = getList();
   if (sortBy === 'final_wr' || sortBy === 'final_rate') {
     list = list.filter((c: any) => c.final >= 3);
-  } else if (sortBy === 'floor1_pick_rate' || sortBy === 'floor1_pick_wr') {
+  } else if (sortBy === 'floor1_pick_rate') {
     list = list.filter((c: any) => c.floor1Appeared >= 3);
-  } else if (sortBy === 'floor2_pick_rate' || sortBy === 'floor2_pick_wr') {
+  } else if (sortBy === 'floor1_pick_wr') {
+    list = list.filter((c: any) => c.floor1Picked >= 3);
+  } else if (sortBy === 'floor2_pick_rate') {
     list = list.filter((c: any) => c.floor2Appeared >= 3);
-  } else if (sortBy === 'floor3_pick_rate' || sortBy === 'floor3_pick_wr') {
+  } else if (sortBy === 'floor2_pick_wr') {
+    list = list.filter((c: any) => c.floor2Picked >= 3);
+  } else if (sortBy === 'floor3_pick_rate') {
     list = list.filter((c: any) => c.floor3Appeared >= 3);
+  } else if (sortBy === 'floor3_pick_wr') {
+    list = list.filter((c: any) => c.floor3Picked >= 3);
+  } else if (sortBy === 'pick_wr') {
+    list = list.filter((c: any) => c.picked >= 3);
   } else {
     list = list.filter((c: any) => c.appeared >= 3);
   }
