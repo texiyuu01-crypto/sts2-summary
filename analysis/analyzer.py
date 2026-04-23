@@ -43,6 +43,8 @@ def analyze():
             "picked_single": 0, "picked_single_wins": 0,
             "picked_multi": 0, "picked_multi_wins": 0,
             "final_count": 0, "final_wins": 0,
+            "final_single": 0, "final_single_wins": 0,
+            "final_multi": 0, "final_multi_wins": 0,
             "appeared": 0, "appeared_single": 0, "appeared_multi": 0,
             # 層（act）ごとの統計
             "floor1_picked": 0, "floor1_picked_wins": 0, "floor1_appeared": 0,
@@ -241,7 +243,9 @@ def analyze():
             for scope in target_scopes:
                 node = scope[cid]
                 node["final_count"] += 1
+                node[f"final_{run_type}"] += 1
                 if is_win: node["final_wins"] += 1
+                if is_win: node[f"final_{run_type}_wins"] += 1
 
         if char == 'UNKNOWN' and len(unknown_examples) < 5:
             unknown_examples.append({k: run.get(k) for k in ('run_hash', 'start_time') if k in run})
