@@ -427,13 +427,13 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
     setSelectedAscension(['A10']);
 
     // default version: select versions with matching second number (e.g., 0.103.2, 0.103.1, 0.103.0)
-    // but only if A10 run count is >= 100 for at least one character
+    // accumulate from latest until A10 run count >= 100 for at least one character
     if (sortedV.length > 0) {
-      // Helper to check if a version group has sufficient A10 data
-      const hasSufficientA10Data = (versions: string[]): boolean => {
-        if (!statsData.by_version_ascension?.summary) return false;
+      // Helper to calculate max runs across given versions
+      const calculateMaxRuns = (versions: string[]): number => {
+        if (!statsData.by_version_ascension?.summary) return 0;
         
-        // Merge runs across all versions in the group for each character
+        // Merge runs across all versions for each character
         const charRuns: Record<string, number> = {};
         versions.forEach(ver => {
           const ascData = statsData.by_version_ascension.summary[ver]?.['A10'];
@@ -447,8 +447,7 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
         });
         
         // Find the maximum runs across all characters
-        const maxRuns = Math.max(...Object.values(charRuns), 0);
-        return maxRuns >= 100;
+        return Math.max(...Object.values(charRuns), 0);
       };
 
       // Get unique version prefixes (first 2 parts)
@@ -471,19 +470,24 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
         return 0;
       });
 
-
-      // Try each version prefix until we find one with sufficient A10 data
+      // Accumulate versions from latest until max runs >= 100
+      let accumulatedVersions: string[] = [];
       let selectedVersions: string[] | 'ALL' = 'ALL';
+      
       for (const prefix of versionPrefixes) {
         const matchingVersions = sortedV.filter(v => {
           const vParts = v.replace(/^v/i, '').split('.');
           return vParts.length >= 2 && vParts.slice(0, 2).join('.') === prefix;
         });
         
-        
-        if (matchingVersions.length > 0 && hasSufficientA10Data(matchingVersions)) {
-          selectedVersions = matchingVersions;
-          break;
+        if (matchingVersions.length > 0) {
+          accumulatedVersions = [...accumulatedVersions, ...matchingVersions];
+          const maxRuns = calculateMaxRuns(accumulatedVersions);
+          
+          if (maxRuns >= 100) {
+            selectedVersions = accumulatedVersions;
+            break;
+          }
         }
       }
 
