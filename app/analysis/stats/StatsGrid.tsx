@@ -682,7 +682,7 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
     const norm = (s: any) => (typeof s === 'string' ? s.replace('CHARACTER.', '').replace('character.', '').toLowerCase() : '');
     list = list.filter((c: any) => {
       const api = cardInfoMap[c.id];
-      if (!api) return true; // keep if no metadata
+      if (!api) return false; // filter out if no metadata
       const color = norm(api.color || api.colour || api.class || api.character || api.type);
       const isColorless = allowedColorNames.has(color) || color === 'colorless' || color === 'neutral';
       const isSameChar = color === activeChar.toLowerCase();
@@ -698,19 +698,47 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
     const total = cards.length;
     if (total === 0) return { S: [], A: [], B: [], C: [], D: [] };
     
-    const sCount = Math.ceil(total * 0.10);
-    const aCount = Math.ceil(total * 0.20);
-    const bCount = Math.ceil(total * 0.40);
-    const cCount = Math.ceil(total * 0.20);
-    const dCount = total - sCount - aCount - bCount - cCount;
+    // Use floor for initial calculation to ensure S=D and A=C
+    let sCount = Math.floor(total * 0.10);
+    let aCount = Math.floor(total * 0.20);
+    let bCount = Math.floor(total * 0.40);
+    let cCount = Math.floor(total * 0.20);
+    let dCount = Math.floor(total * 0.10);
     
-    return {
+    // Distribute remainder to maintain S=D and A=C
+    const remainder = total - (sCount + aCount + bCount + cCount + dCount);
+    
+    // Add remainder to B tier first (largest tier), then to A and C equally
+    bCount += remainder;
+    
+    // Ensure S=D and A=C by adjusting if needed
+    if (sCount !== dCount) {
+      const diff = dCount - sCount;
+      if (diff > 0) {
+        sCount += diff;
+      } else {
+        dCount += -diff;
+      }
+    }
+    
+    if (aCount !== cCount) {
+      const diff = cCount - aCount;
+      if (diff > 0) {
+        aCount += diff;
+      } else {
+        cCount += -diff;
+      }
+    }
+    
+    const result = {
       S: cards.slice(0, sCount),
       A: cards.slice(sCount, sCount + aCount),
       B: cards.slice(sCount + aCount, sCount + aCount + bCount),
       C: cards.slice(sCount + aCount + bCount, sCount + aCount + bCount + cCount),
       D: cards.slice(sCount + aCount + bCount + cCount),
     };
+    
+    return result;
   };
 
   // Calculate tier data from filtered list (after all filtering is complete)
@@ -720,6 +748,9 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
     setHovered(null);
     setIsExporting(true);
     
+    // Recalculate tier data at export time to ensure accuracy
+    const exportTierData = distributeCardsToTiers(list);
+    
     // Wait for the hidden tier list to be rendered
     await new Promise(resolve => setTimeout(resolve, 100));
     
@@ -727,6 +758,7 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
       setIsExporting(false);
       return;
     }
+    
 
     const DPR = Math.max(1, window.devicePixelRatio || 1);
     const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
