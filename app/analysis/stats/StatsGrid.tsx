@@ -427,23 +427,67 @@ export default function StatsGrid({ statsData, cardInfoMap, updatedAt }: { stats
     setSelectedAscension(['A10']);
 
     // default version: select versions with matching second number (e.g., 0.103.2, 0.103.1, 0.103.0)
+    // but only if A10 run count is >= 100 for at least one character
     if (sortedV.length > 0) {
-      const latestVersion = sortedV[0];
-      const parts = latestVersion.replace(/^v/i, '').split('.');
-      if (parts.length >= 2) {
-        const targetPrefix = parts.slice(0, 2).join('.');
+      // Helper to check if a version group has sufficient A10 data
+      const hasSufficientA10Data = (versions: string[]): boolean => {
+        if (!statsData.by_version_ascension?.summary) return false;
+        
+        // Merge runs across all versions in the group for each character
+        const charRuns: Record<string, number> = {};
+        versions.forEach(ver => {
+          const ascData = statsData.by_version_ascension.summary[ver]?.['A10'];
+          if (ascData) {
+            Object.entries(ascData).forEach(([char, charData]: [string, any]) => {
+              const runs = charData.total_runs_single || charData.total_runs_multi || 0;
+              if (!charRuns[char]) charRuns[char] = 0;
+              charRuns[char] += runs;
+            });
+          }
+        });
+        
+        // Find the maximum runs across all characters
+        const maxRuns = Math.max(...Object.values(charRuns), 0);
+        return maxRuns >= 100;
+      };
+
+      // Get unique version prefixes (first 2 parts)
+      const versionPrefixes = Array.from(new Set(
+        sortedV.map(v => {
+          const parts = v.replace(/^v/i, '').split('.');
+          return parts.length >= 2 ? parts.slice(0, 2).join('.') : null;
+        }).filter((p): p is string => p !== null)
+      )).sort((a, b) => {
+        // Sort prefixes in descending order (newer first)
+        const pa = a.split('.').map(s => isNaN(Number(s)) ? s : Number(s));
+        const pb = b.split('.').map(s => isNaN(Number(s)) ? s : Number(s));
+        for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+          const aa = pa[i] === undefined ? -Infinity : pa[i];
+          const bb = pb[i] === undefined ? -Infinity : pb[i];
+          if (aa === bb) continue;
+          if (typeof aa === 'number' && typeof bb === 'number') return bb - aa;
+          return String(bb).localeCompare(String(aa));
+        }
+        return 0;
+      });
+
+
+      // Try each version prefix until we find one with sufficient A10 data
+      let selectedVersions: string[] | 'ALL' = 'ALL';
+      for (const prefix of versionPrefixes) {
         const matchingVersions = sortedV.filter(v => {
           const vParts = v.replace(/^v/i, '').split('.');
-          return vParts.length >= 2 && vParts.slice(0, 2).join('.') === targetPrefix;
+          return vParts.length >= 2 && vParts.slice(0, 2).join('.') === prefix;
         });
-        if (matchingVersions.length > 0) {
-          setSelectedVersion(matchingVersions);
-        } else {
-          setSelectedVersion('ALL');
+        
+        
+        if (matchingVersions.length > 0 && hasSufficientA10Data(matchingVersions)) {
+          selectedVersions = matchingVersions;
+          break;
         }
-      } else {
-        setSelectedVersion('ALL');
       }
+
+      setSelectedVersion(selectedVersions);
     } else {
       setSelectedVersion('ALL');
     }
