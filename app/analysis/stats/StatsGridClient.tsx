@@ -7,32 +7,49 @@ export default function StatsGridClient() {
   const [statsData, setStatsData] = useState<any>(null);
   const [cardInfoMap, setCardInfoMap] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingStage, setLoadingStage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
+        setLoadingStage('基本データ読み込み中...');
+        setLoadingProgress(5);
+        
         // Load summary data
         const summaryRes = await fetch('/data/summary.json');
         if (!summaryRes.ok) throw new Error('Failed to load summary data');
         const summary = await summaryRes.json();
+        setLoadingProgress(10);
 
-        // Load all character card data
-        const cardsSource: Record<string, any> = {};
+        // Load all character card data in parallel
+        setLoadingStage('キャラクターデータ読み込み中...');
         const characters = ['ironclad', 'silent', 'defect', 'necrobinder', 'regent'];
+        const cardsSource: Record<string, any> = {};
         
-        for (const char of characters) {
+        const characterPromises = characters.map(async (char, idx) => {
           try {
             const charRes = await fetch(`/data/cards_${char}.json`);
             if (charRes.ok) {
-              cardsSource[char] = await charRes.json();
+              return { char, data: await charRes.json() };
             }
           } catch (e) {
             console.warn(`Failed to load data for ${char}:`, e);
           }
-        }
+          return null;
+        });
+        
+        const characterResults = await Promise.all(characterPromises);
+        characterResults.forEach(result => {
+          if (result) {
+            cardsSource[result.char] = result.data;
+          }
+        });
+        setLoadingProgress(30);
 
-        // Load by_version summary for version selector
+        // Load by_version summary and cards in parallel
+        setLoadingStage('バージョンデータ読み込み中...');
         let byVersionSummary: any = {};
         let byVersionCards: any = {};
         try {
@@ -43,21 +60,32 @@ export default function StatsGridClient() {
         } catch (e) {
           console.warn('Failed to load by_version summary:', e);
         }
+        setLoadingProgress(35);
 
-        // Load by_version cards data
+        // Load by_version cards data in parallel
         const versions = Object.keys(byVersionSummary);
-        for (const version of versions) {
+        const versionCardPromises = versions.map(async (version) => {
           try {
             const bvCardsRes = await fetch(`/data/by_version_cards_${version}.json`);
             if (bvCardsRes.ok) {
-              byVersionCards[version] = await bvCardsRes.json();
+              return { version, data: await bvCardsRes.json() };
             }
           } catch (e) {
             console.warn(`Failed to load by_version cards for ${version}:`, e);
           }
-        }
+          return null;
+        });
+        
+        const versionCardResults = await Promise.all(versionCardPromises);
+        versionCardResults.forEach(result => {
+          if (result) {
+            byVersionCards[result.version] = result.data;
+          }
+        });
+        setLoadingProgress(50);
 
-        // Load by_ascension summary for ascension selector
+        // Load by_ascension summary and cards in parallel
+        setLoadingStage('昇格データ読み込み中...');
         let byAscensionSummary: any = {};
         let byAscensionCards: any = {};
         try {
@@ -68,21 +96,32 @@ export default function StatsGridClient() {
         } catch (e) {
           console.warn('Failed to load by_ascension summary:', e);
         }
+        setLoadingProgress(55);
 
-        // Load by_ascension cards data
+        // Load by_ascension cards data in parallel
         const ascensions = Object.keys(byAscensionSummary);
-        for (const asc of ascensions) {
+        const ascensionCardPromises = ascensions.map(async (asc) => {
           try {
             const baCardsRes = await fetch(`/data/by_ascension_cards_${asc.toLowerCase()}.json`);
             if (baCardsRes.ok) {
-              byAscensionCards[asc] = await baCardsRes.json();
+              return { asc, data: await baCardsRes.json() };
             }
           } catch (e) {
             console.warn(`Failed to load by_ascension cards for ${asc}:`, e);
           }
-        }
+          return null;
+        });
+        
+        const ascensionCardResults = await Promise.all(ascensionCardPromises);
+        ascensionCardResults.forEach(result => {
+          if (result) {
+            byAscensionCards[result.asc] = result.data;
+          }
+        });
+        setLoadingProgress(70);
 
-        // Load by_version_ascension summary for accurate calculation
+        // Load by_version_ascension summary and cards in parallel
+        setLoadingStage('バージョン×昇格データ読み込み中...');
         let byVersionAscensionSummary: any = {};
         let byVersionAscensionCards: any = {};
         try {
@@ -93,25 +132,39 @@ export default function StatsGridClient() {
         } catch (e) {
           console.warn('Failed to load by_version_ascension summary:', e);
         }
+        setLoadingProgress(75);
 
-        // Load by_version_ascension cards data (only for combinations that exist in summary)
+        // Load by_version_ascension cards data in parallel
+        const bvaCardPromises: Promise<{ version: string; ascension: string; data: any } | null>[] = [];
         for (const version of Object.keys(byVersionAscensionSummary)) {
           const versionData = byVersionAscensionSummary[version];
           for (const ascension of Object.keys(versionData)) {
-            try {
-              const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${ascension}.json`);
-              if (bvaCardsRes.ok) {
-                const cardsData = await bvaCardsRes.json();
-                if (!byVersionAscensionCards[version]) {
-                  byVersionAscensionCards[version] = {};
+            bvaCardPromises.push(
+              (async () => {
+                try {
+                  const bvaCardsRes = await fetch(`/data/by_version_ascension_cards_${version}_${ascension}.json`);
+                  if (bvaCardsRes.ok) {
+                    return { version, ascension, data: await bvaCardsRes.json() };
+                  }
+                } catch (e) {
+                  console.warn(`Failed to load by_version_ascension cards for ${version}_${ascension}:`, e);
                 }
-                byVersionAscensionCards[version][ascension] = cardsData;
-              }
-            } catch (e) {
-              console.warn(`Failed to load by_version_ascension cards for ${version}_${ascension}:`, e);
-            }
+                return null;
+              })()
+            );
           }
         }
+        
+        const bvaCardResults = await Promise.all(bvaCardPromises);
+        bvaCardResults.forEach(result => {
+          if (result) {
+            if (!byVersionAscensionCards[result.version]) {
+              byVersionAscensionCards[result.version] = {};
+            }
+            byVersionAscensionCards[result.version][result.ascension] = result.data;
+          }
+        });
+        setLoadingProgress(85);
 
         // Load updated_at
         let updatedAt = '';
@@ -124,6 +177,7 @@ export default function StatsGridClient() {
         } catch (e) {
           console.warn('Failed to load updated_at:', e);
         }
+        setLoadingProgress(90);
 
         const finalData = {
           summary,
@@ -134,8 +188,10 @@ export default function StatsGridClient() {
           updated_at: updatedAt
         };
         setStatsData(finalData);
+        setLoadingProgress(95);
 
         // Load card info from API
+        setLoadingStage('カード情報読み込み中...');
         const cardRes = await fetch('https://spire-codex.com/api/cards?lang=jpn');
         const allCardsApi = await cardRes.json();
         const cardMap: Record<string, any> = {};
@@ -145,6 +201,7 @@ export default function StatsGridClient() {
           cardMap[`CARD.${baseId}`] = card;
         });
         setCardInfoMap(cardMap);
+        setLoadingProgress(100);
       } catch (e) {
         console.error("Error loading data", e);
         setError(e instanceof Error ? e.message : 'Failed to load data');
@@ -158,7 +215,17 @@ export default function StatsGridClient() {
 
   if (loading) {
     return (
-      <div className="text-xl">Loading...</div>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] text-[#cbd5e1]">
+        <div className="text-xl font-black tracking-widest mb-4">LOADING</div>
+        <div className="text-sm text-[#64748b] mb-2">{loadingStage}</div>
+        <div className="w-64 h-2 bg-[#1e293b] rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-blue-500 transition-all duration-300 ease-out"
+            style={{ width: `${loadingProgress}%` }}
+          />
+        </div>
+        <div className="text-xs text-[#64748b] mt-2">{loadingProgress}%</div>
+      </div>
     );
   }
 
