@@ -445,11 +445,16 @@ export default function CardsPage() {
     setLoading(true);
     const colorQuery = activeTab === 'all' ? '' : `&color=${activeTab}`;
     fetch(`https://spire-codex.com/api/cards?lang=jpn${colorQuery}`).then(res => res.json()).then(data => {
-      setAllCards(data);
+      // Filter out cards without proper metadata (e.g., old cards like GRAPPLE)
+      const filteredData = data.filter((card: any) => {
+        // Filter out cards that don't have required fields
+        return card && card.id && card.name && card.description;
+      });
+      setAllCards(filteredData);
       const urlParams = new URLSearchParams(window.location.search);
       const t = urlParams.get('t');
-      if (t) applyHashToData(t, data);
-      else setTierData({ pool: data, S: [], A: [], B: [], C: [], D: [] });
+      if (t) applyHashToData(t, filteredData);
+      else setTierData({ pool: filteredData, S: [], A: [], B: [], C: [], D: [] });
       setLoading(false);
     });
   }, [activeTab, applyHashToData]);
