@@ -1538,12 +1538,12 @@
     },
     "A1": {
       "silent": {
-        "total_runs": 30,
-        "total_wins": 13,
+        "total_runs": 34,
+        "total_wins": 17,
         "total_runs_single": 22,
         "total_wins_single": 9,
-        "total_runs_multi": 8,
-        "total_wins_multi": 4
+        "total_runs_multi": 12,
+        "total_wins_multi": 8
       },
       "necrobinder": {
         "total_runs": 32,
@@ -2792,9 +2792,9 @@
     },
     "A1": {
       "necrobinder": {
-        "total_runs": 6,
+        "total_runs": 8,
         "total_wins": 2,
-        "total_runs_single": 2,
+        "total_runs_single": 4,
         "total_wins_single": 0,
         "total_runs_multi": 4,
         "total_wins_multi": 2
@@ -2826,10 +2826,10 @@
         "total_wins_multi": 0
       },
       "necrobinder": {
-        "total_runs": 4,
-        "total_wins": 0,
-        "total_runs_single": 4,
-        "total_wins_single": 0,
+        "total_runs": 5,
+        "total_wins": 1,
+        "total_runs_single": 5,
+        "total_wins_single": 1,
         "total_runs_multi": 0,
         "total_wins_multi": 0
       },
@@ -2886,9 +2886,9 @@
         "total_wins_multi": 0
       },
       "silent": {
-        "total_runs": 5,
+        "total_runs": 7,
         "total_wins": 0,
-        "total_runs_single": 5,
+        "total_runs_single": 7,
         "total_wins_single": 0,
         "total_runs_multi": 0,
         "total_wins_multi": 0
@@ -2936,9 +2936,9 @@
         "total_wins_multi": 0
       },
       "ironclad": {
-        "total_runs": 2,
+        "total_runs": 3,
         "total_wins": 1,
-        "total_runs_single": 2,
+        "total_runs_single": 3,
         "total_wins_single": 1,
         "total_runs_multi": 0,
         "total_wins_multi": 0
@@ -3026,6 +3026,14 @@
         "total_wins": 2,
         "total_runs_single": 3,
         "total_wins_single": 2,
+        "total_runs_multi": 0,
+        "total_wins_multi": 0
+      },
+      "defect": {
+        "total_runs": 2,
+        "total_wins": 1,
+        "total_runs_single": 2,
+        "total_wins_single": 1,
         "total_runs_multi": 0,
         "total_wins_multi": 0
       },
