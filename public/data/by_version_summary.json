@@ -277,17 +277,17 @@
       "total_wins_multi": 10
     },
     "silent": {
-      "total_runs": 85,
+      "total_runs": 87,
       "total_wins": 14,
-      "total_runs_single": 79,
+      "total_runs_single": 81,
       "total_wins_single": 12,
       "total_runs_multi": 6,
       "total_wins_multi": 2
     },
     "ironclad": {
-      "total_runs": 70,
+      "total_runs": 71,
       "total_wins": 16,
-      "total_runs_single": 56,
+      "total_runs_single": 57,
       "total_wins_single": 8,
       "total_runs_multi": 14,
       "total_wins_multi": 8
@@ -295,34 +295,34 @@
   },
   "v0.104.0": {
     "ironclad": {
-      "total_runs": 2,
-      "total_wins": 1,
-      "total_runs_single": 2,
-      "total_wins_single": 1,
+      "total_runs": 8,
+      "total_wins": 3,
+      "total_runs_single": 8,
+      "total_wins_single": 3,
+      "total_runs_multi": 0,
+      "total_wins_multi": 0
+    },
+    "necrobinder": {
+      "total_runs": 5,
+      "total_wins": 2,
+      "total_runs_single": 5,
+      "total_wins_single": 2,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
     "silent": {
-      "total_runs": 1,
+      "total_runs": 2,
       "total_wins": 0,
-      "total_runs_single": 1,
+      "total_runs_single": 2,
       "total_wins_single": 0,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
     "regent": {
-      "total_runs": 1,
+      "total_runs": 2,
       "total_wins": 1,
-      "total_runs_single": 1,
+      "total_runs_single": 2,
       "total_wins_single": 1,
-      "total_runs_multi": 0,
-      "total_wins_multi": 0
-    },
-    "necrobinder": {
-      "total_runs": 1,
-      "total_wins": 0,
-      "total_runs_single": 1,
-      "total_wins_single": 0,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
@@ -336,48 +336,72 @@
     }
   },
   "v0.103.0": {
-    "silent": {
-      "total_runs": 60,
-      "total_wins": 16,
-      "total_runs_single": 51,
-      "total_wins_single": 13,
-      "total_runs_multi": 9,
-      "total_wins_multi": 3
-    },
-    "regent": {
-      "total_runs": 33,
-      "total_wins": 14,
-      "total_runs_single": 29,
-      "total_wins_single": 10,
+    "ironclad": {
+      "total_runs": 138,
+      "total_wins": 27,
+      "total_runs_single": 134,
+      "total_wins_single": 25,
       "total_runs_multi": 4,
-      "total_wins_multi": 4
+      "total_wins_multi": 2
     },
     "defect": {
-      "total_runs": 35,
-      "total_wins": 11,
-      "total_runs_single": 33,
-      "total_wins_single": 9,
+      "total_runs": 48,
+      "total_wins": 12,
+      "total_runs_single": 46,
+      "total_wins_single": 10,
       "total_runs_multi": 2,
       "total_wins_multi": 2
     },
-    "ironclad": {
-      "total_runs": 131,
-      "total_wins": 25,
-      "total_runs_single": 127,
-      "total_wins_single": 23,
-      "total_runs_multi": 4,
-      "total_wins_multi": 2
-    },
     "necrobinder": {
-      "total_runs": 38,
+      "total_runs": 40,
       "total_wins": 7,
-      "total_runs_single": 34,
+      "total_runs_single": 36,
       "total_wins_single": 5,
       "total_runs_multi": 4,
       "total_wins_multi": 2
+    },
+    "silent": {
+      "total_runs": 112,
+      "total_wins": 33,
+      "total_runs_single": 95,
+      "total_wins_single": 22,
+      "total_runs_multi": 17,
+      "total_wins_multi": 11
+    },
+    "regent": {
+      "total_runs": 47,
+      "total_wins": 21,
+      "total_runs_single": 39,
+      "total_wins_single": 13,
+      "total_runs_multi": 8,
+      "total_wins_multi": 8
     }
   },
   "v0.103.2": {
+    "silent": {
+      "total_runs": 59,
+      "total_wins": 16,
+      "total_runs_single": 53,
+      "total_wins_single": 12,
+      "total_runs_multi": 6,
+      "total_wins_multi": 4
+    },
+    "defect": {
+      "total_runs": 112,
+      "total_wins": 12,
+      "total_runs_single": 109,
+      "total_wins_single": 12,
+      "total_runs_multi": 3,
+      "total_wins_multi": 0
+    },
+    "regent": {
+      "total_runs": 91,
+      "total_wins": 23,
+      "total_runs_single": 67,
+      "total_wins_single": 7,
+      "total_runs_multi": 24,
+      "total_wins_multi": 16
+    },
     "ironclad": {
       "total_runs": 73,
       "total_wins": 14,
@@ -386,14 +410,6 @@
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
-    "regent": {
-      "total_runs": 86,
-      "total_wins": 22,
-      "total_runs_single": 62,
-      "total_wins_single": 6,
-      "total_runs_multi": 24,
-      "total_wins_multi": 16
-    },
     "necrobinder": {
       "total_runs": 66,
       "total_wins": 19,
@@ -401,22 +417,6 @@
       "total_wins_single": 10,
       "total_runs_multi": 14,
       "total_wins_multi": 9
-    },
-    "silent": {
-      "total_runs": 36,
-      "total_wins": 9,
-      "total_runs_single": 30,
-      "total_wins_single": 5,
-      "total_runs_multi": 6,
-      "total_wins_multi": 4
-    },
-    "defect": {
-      "total_runs": 105,
-      "total_wins": 10,
-      "total_runs_single": 102,
-      "total_wins_single": 10,
-      "total_runs_multi": 3,
-      "total_wins_multi": 0
     }
   },
   "v0.100.0": {
@@ -462,18 +462,26 @@
     }
   },
   "v0.103.1": {
+    "silent": {
+      "total_runs": 13,
+      "total_wins": 2,
+      "total_runs_single": 13,
+      "total_wins_single": 2,
+      "total_runs_multi": 0,
+      "total_wins_multi": 0
+    },
     "defect": {
-      "total_runs": 5,
+      "total_runs": 7,
       "total_wins": 3,
-      "total_runs_single": 5,
+      "total_runs_single": 7,
       "total_wins_single": 3,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
     "regent": {
-      "total_runs": 4,
+      "total_runs": 7,
       "total_wins": 2,
-      "total_runs_single": 4,
+      "total_runs_single": 7,
       "total_wins_single": 2,
       "total_runs_multi": 0,
       "total_wins_multi": 0
@@ -491,14 +499,6 @@
       "total_wins": 1,
       "total_runs_single": 2,
       "total_wins_single": 1,
-      "total_runs_multi": 0,
-      "total_wins_multi": 0
-    },
-    "silent": {
-      "total_runs": 6,
-      "total_wins": 0,
-      "total_runs_single": 6,
-      "total_wins_single": 0,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     }
