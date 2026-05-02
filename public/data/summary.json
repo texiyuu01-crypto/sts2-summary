@@ -1,9 +1,9 @@
 {
   "necrobinder": {
-    "total_runs": 1052,
-    "total_wins": 312,
-    "total_runs_single": 907,
-    "total_wins_single": 217,
+    "total_runs": 1053,
+    "total_wins": 313,
+    "total_runs_single": 908,
+    "total_wins_single": 218,
     "total_runs_multi": 145,
     "total_wins_multi": 95
   },
@@ -16,10 +16,10 @@
     "total_wins_multi": 126
   },
   "defect": {
-    "total_runs": 901,
-    "total_wins": 247,
-    "total_runs_single": 807,
-    "total_wins_single": 205,
+    "total_runs": 903,
+    "total_wins": 248,
+    "total_runs_single": 809,
+    "total_wins_single": 206,
     "total_runs_multi": 94,
     "total_wins_multi": 42
   },
