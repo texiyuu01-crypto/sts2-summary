@@ -33,10 +33,10 @@
       "total_wins_multi": 8
     },
     "defect": {
-      "total_runs": 146,
-      "total_wins": 38,
-      "total_runs_single": 132,
-      "total_wins_single": 34,
+      "total_runs": 149,
+      "total_wins": 39,
+      "total_runs_single": 135,
+      "total_wins_single": 35,
       "total_runs_multi": 14,
       "total_wins_multi": 4
     }
@@ -311,12 +311,20 @@
       "total_wins_multi": 0
     },
     "silent": {
-      "total_runs": 133,
+      "total_runs": 134,
       "total_wins": 21,
-      "total_runs_single": 120,
+      "total_runs_single": 121,
       "total_wins_single": 12,
       "total_runs_multi": 13,
       "total_wins_multi": 9
+    },
+    "defect": {
+      "total_runs": 68,
+      "total_wins": 10,
+      "total_runs_single": 66,
+      "total_wins_single": 10,
+      "total_runs_multi": 2,
+      "total_wins_multi": 0
     },
     "regent": {
       "total_runs": 55,
@@ -325,14 +333,6 @@
       "total_wins_single": 9,
       "total_runs_multi": 13,
       "total_wins_multi": 4
-    },
-    "defect": {
-      "total_runs": 67,
-      "total_wins": 10,
-      "total_runs_single": 65,
-      "total_wins_single": 10,
-      "total_runs_multi": 2,
-      "total_wins_multi": 0
     }
   },
   "A8": {
@@ -345,26 +345,26 @@
       "total_wins_multi": 0
     },
     "necrobinder": {
-      "total_runs": 36,
+      "total_runs": 37,
       "total_wins": 19,
-      "total_runs_single": 32,
+      "total_runs_single": 33,
       "total_wins_single": 15,
       "total_runs_multi": 4,
       "total_wins_multi": 4
     },
-    "ironclad": {
-      "total_runs": 54,
-      "total_wins": 14,
-      "total_runs_single": 54,
-      "total_wins_single": 14,
+    "regent": {
+      "total_runs": 39,
+      "total_wins": 13,
+      "total_runs_single": 39,
+      "total_wins_single": 13,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
-    "regent": {
-      "total_runs": 38,
-      "total_wins": 13,
-      "total_runs_single": 38,
-      "total_wins_single": 13,
+    "ironclad": {
+      "total_runs": 55,
+      "total_wins": 15,
+      "total_runs_single": 55,
+      "total_wins_single": 15,
       "total_runs_multi": 0,
       "total_wins_multi": 0
     },
