@@ -2094,10 +2094,10 @@
         "total_wins_multi": 0
       },
       "ironclad": {
-        "total_runs": 3,
-        "total_wins": 1,
-        "total_runs_single": 3,
-        "total_wins_single": 1,
+        "total_runs": 4,
+        "total_wins": 2,
+        "total_runs_single": 4,
+        "total_wins_single": 2,
         "total_runs_multi": 0,
         "total_wins_multi": 0
       }
