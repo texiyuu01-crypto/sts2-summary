@@ -1,42 +1,42 @@
 {
+  "ironclad": {
+    "total_runs": 1225,
+    "total_wins": 334,
+    "total_runs_single": 1052,
+    "total_wins_single": 269,
+    "total_runs_multi": 173,
+    "total_wins_multi": 65
+  },
   "necrobinder": {
-    "total_runs": 1057,
-    "total_wins": 313,
-    "total_runs_single": 912,
-    "total_wins_single": 218,
+    "total_runs": 1126,
+    "total_wins": 323,
+    "total_runs_single": 981,
+    "total_wins_single": 228,
     "total_runs_multi": 145,
     "total_wins_multi": 95
   },
   "regent": {
-    "total_runs": 1276,
-    "total_wins": 336,
-    "total_runs_single": 1000,
-    "total_wins_single": 210,
+    "total_runs": 1292,
+    "total_wins": 339,
+    "total_runs_single": 1016,
+    "total_wins_single": 213,
     "total_runs_multi": 276,
     "total_wins_multi": 126
   },
   "defect": {
-    "total_runs": 910,
-    "total_wins": 249,
-    "total_runs_single": 816,
-    "total_wins_single": 207,
-    "total_runs_multi": 94,
-    "total_wins_multi": 42
+    "total_runs": 939,
+    "total_wins": 258,
+    "total_runs_single": 841,
+    "total_wins_single": 214,
+    "total_runs_multi": 98,
+    "total_wins_multi": 44
   },
   "silent": {
-    "total_runs": 1141,
-    "total_wins": 333,
-    "total_runs_single": 977,
-    "total_wins_single": 252,
-    "total_runs_multi": 164,
-    "total_wins_multi": 81
-  },
-  "ironclad": {
-    "total_runs": 1207,
-    "total_wins": 330,
-    "total_runs_single": 1036,
-    "total_wins_single": 265,
-    "total_runs_multi": 171,
-    "total_wins_multi": 65
+    "total_runs": 1159,
+    "total_wins": 339,
+    "total_runs_single": 993,
+    "total_wins_single": 256,
+    "total_runs_multi": 166,
+    "total_wins_multi": 83
   }
 }
