@@ -5,6 +5,169 @@
       "ACT.HIVE",
       "ACT.GLORY"
     ],
+    "ascension": 0,
+    "build_id": "v0.103.2",
+    "game_mode": "standard",
+    "killed_by_encounter": "ENCOUNTER.SLIMES_WEAK",
+    "killed_by_event": "NONE.NONE",
+    "map_point_history": [
+      [
+        {
+          "map_point_type": "monster",
+          "player_stats": [
+            {
+              "card_choices": [
+                {
+                  "card": {
+                    "id": "CARD.SETUP_STRIKE"
+                  },
+                  "was_picked": false
+                },
+                {
+                  "card": {
+                    "id": "CARD.TREMBLE"
+                  },
+                  "was_picked": false
+                },
+                {
+                  "card": {
+                    "id": "CARD.BLOOD_WALL"
+                  },
+                  "was_picked": false
+                }
+              ],
+              "current_gold": 112,
+              "current_hp": 73,
+              "damage_taken": 13,
+              "gold_gained": 13,
+              "gold_lost": 0,
+              "gold_spent": 0,
+              "gold_stolen": 0,
+              "hp_healed": 6,
+              "max_hp": 80,
+              "max_hp_gained": 0,
+              "max_hp_lost": 0,
+              "player_id": 1
+            }
+          ],
+          "rooms": [
+            {
+              "model_id": "ENCOUNTER.NIBBITS_WEAK",
+              "monster_ids": [
+                "MONSTER.NIBBIT"
+              ],
+              "room_type": "monster",
+              "turns_taken": 4
+            }
+          ]
+        },
+        {
+          "map_point_type": "monster",
+          "player_stats": [
+            {
+              "current_gold": 112,
+              "current_hp": 0,
+              "damage_taken": 0,
+              "gold_gained": 0,
+              "gold_lost": 0,
+              "gold_spent": 0,
+              "gold_stolen": 0,
+              "hp_healed": 0,
+              "max_hp": 80,
+              "max_hp_gained": 0,
+              "max_hp_lost": 0,
+              "player_id": 1
+            }
+          ],
+          "rooms": [
+            {
+              "model_id": "ENCOUNTER.SLIMES_WEAK",
+              "monster_ids": [
+                "MONSTER.TWIG_SLIME_S",
+                "MONSTER.TWIG_SLIME_M",
+                "MONSTER.LEAF_SLIME_S"
+              ],
+              "room_type": "monster",
+              "turns_taken": 1
+            }
+          ]
+        }
+      ]
+    ],
+    "modifiers": [],
+    "platform_type": "steam",
+    "players": [
+      {
+        "badges": [],
+        "character": "CHARACTER.IRONCLAD",
+        "deck": [
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.STRIKE_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.STRIKE_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.STRIKE_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.STRIKE_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.STRIKE_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.DEFEND_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.DEFEND_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.DEFEND_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.DEFEND_IRONCLAD"
+          },
+          {
+            "floor_added_to_deck": 1,
+            "id": "CARD.BASH"
+          }
+        ],
+        "id": 1,
+        "max_potion_slot_count": 3,
+        "potions": [],
+        "relics": [
+          {
+            "floor_added_to_deck": 1,
+            "id": "RELIC.BURNING_BLOOD"
+          }
+        ]
+      }
+    ],
+    "run_time": 90,
+    "schema_version": 9,
+    "seed": "VFRRF3R9WR",
+    "start_time": 1778594169,
+    "was_abandoned": true,
+    "win": false,
+    "username": "Stunga yanco",
+    "run_hash": "2adafc967525c2dd"
+  },
+  {
+    "acts": [
+      "ACT.OVERGROWTH",
+      "ACT.HIVE",
+      "ACT.GLORY"
+    ],
     "ascension": 5,
     "build_id": "v0.103.2",
     "game_mode": "standard",
