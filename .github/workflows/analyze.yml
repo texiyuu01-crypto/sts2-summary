@@ -34,19 +34,34 @@ jobs:
       - name: Run split_stats
         run: python analysis/split_stats.py
 
-      - name: Commit and Push
+      - name: Commit and Push (safe LFS-aware)
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          # 修正ポイント：
-          # 1. 増加した日別JSON（runs_*.json）をすべて追加
-          # 2. 更新された統計データ（tier_stats.json）を追加
-          # 3. 分割された統計データ（public/data/*.json）を追加
-          git add src/data/runs_*.json
-          git add src/data/tier_stats.json
-          git add public/data/*.json
-          
-          git commit -m "Update latest runs data and stats" || exit 0
-          git pull --rebase origin main
-          git push
+
+          # Ensure LFS is active locally and repo aligns with remote to avoid pointer/data conflicts
+          git lfs install --local || true
+          git fetch origin --prune
+          git reset --hard origin/main
+
+          # Stage generated files (use || true to avoid step failure if no matches)
+          git add src/data/runs_*.json || true
+          git add src/data/tier_stats.json || true
+          git add public/data/*.json || true
+
+          # If nothing staged, exit cleanly
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Update latest runs data and stats" || true
+
+          # Only push if HEAD differs from origin/main
+          UPSTREAM=$(git rev-parse --verify origin/main)
+          HEADREF=$(git rev-parse --verify HEAD)
+          if [ "$UPSTREAM" != "$HEADREF" ]; then
+            git push origin HEAD:main
+          else
+            echo "No new commit to push."
+          fi
